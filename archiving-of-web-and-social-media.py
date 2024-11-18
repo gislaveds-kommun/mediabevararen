@@ -11,7 +11,7 @@ Created on Thu Aug 29 16:19:39 2024
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
+    This program is distributed in the hope that it will be useful,P
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -64,8 +64,7 @@ def get_webpage_metadata(url,option,driver):
                 if name_attr and name_attr.lower() == "keywords":
                     keywords = tag.get_attribute("content")
                     break
-            
-            #print("Keywords:", keywords)
+
             if keywords == None:
                 return_value = "Inga Keywords specificerade för denna webbsida"
             else:
@@ -95,10 +94,7 @@ def get_webpage_metadata(url,option,driver):
             print("An error occurred:", e)
             return_value = "Ingen beskrivning specificerad för denna webbsida"
     
-    #return_value = re.sub('[&]', "_", return_value) 
     print("returnvalue is:", return_value)
-    # Close the browser
-    #driver.quit()
     return return_value
 
 def get_site(url): # get the domain from the url ex. www.gislaved.se/somepage.html is www.gislaved.se
@@ -111,7 +107,6 @@ def create_xml_fgs(row, formatted_date, xml_file_name, tiff_image_name, folder_n
     # Create XML data for FGS Webbsidor
     url = row[0]
     webbsida_text = row[1]
-    #clean_url = url.replace("&","")
     root = ET.Element("Leveransobjekt", attrib={"xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",  "xsi:noNamespaceSchemaLocation": "FREDA-GS-Webbsidor-v1_0.xsd",  "xmlns": "freda"})
     dokument = ET.SubElement(root, "Dokument")
     
@@ -239,8 +234,6 @@ def create_xml_fgs(row, formatted_date, xml_file_name, tiff_image_name, folder_n
     # Create a string representation of the XML with formatting
     
     # Save the formatted XML to a file
-    #file_path = output_folder.get()
-    #file_path = f"{file_path}\{filename_new}.xml"
     xml_file_path = folder_name + "/" + xml_file_name
     with open(xml_file_path, "w", encoding="utf-8") as file:
         file.write(formatted_xml)    
@@ -440,9 +433,9 @@ def capture_full_page_screenshot_with_custom_width(output_path, width, driver, t
         except Exception as e:
             print(f"Error click button cookies: {e}")
             
-    #elif type_of_web_extraction ==2:
+    elif type_of_web_extraction ==2:
         #2 is Internal web insidan.gislaved.se
-    #elif type_of_web_extraction ==3:
+    elif type_of_web_extraction ==3:
         # 3 is Facebook
     elif type_of_web_extraction == 4:
         try:
@@ -468,34 +461,6 @@ def capture_full_page_screenshot_with_custom_width(output_path, width, driver, t
         except Exception as e:
             print(f"Error click  login button s: {e}")
         
-
-    # Section with buttons the could be useful depending on changes in the user interface of the crawled sites
-    """
-    try:
-        close_svg = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH, '//svg[@aria-label="Stäng"]'))
-        )
-        # Click on the SVG element
-        close_svg.click()
-    except Exception as e:
-        print(f"Error: {e}")
-    """
-    
-    """
-    try: # try to click the cookies button
-        button = driver.find_element(By.XPATH, "//button[contains(@class, '_a9--') and text()='Tillåt alla cookies']")
-        button.click()
-    except Exception as e:
-        print(f"Error click button cookies: {e}")
-    """
-    """
-    try: # try to click the cookies button
-        button = driver.find_element(By.XPATH, "//a[contains(text(), 'Logga in')]")
-        button.click()
-    except Exception as e:
-        print(f"Error click  login button s: {e}")
-    """
-
     driver.implicitly_wait(5)
     
     # Get the page's full height    
@@ -506,9 +471,7 @@ def capture_full_page_screenshot_with_custom_width(output_path, width, driver, t
     
     # Take a screenshot
     driver.save_screenshot(output_path)
-    
-    # Close the browser
-    #driver.quit()
+
     print(f"Saved screenshot to {output_path}")
 
     
