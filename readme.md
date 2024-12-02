@@ -16,15 +16,26 @@
 >
 # Installation
 
->Download **Anaconda**
->
->https://www.anaconda.com/download
->
->**Anaconda** is a collection of softwares. 
 
->Open **Anaconda prompt** and write the following
-1. pip install selenium
-2. pip install webdriver-manager
+# Prerequisites
+The application needs to be run on a Windows machine capable of running Python 3.
+ 
+
+#### Python Modules
+The following modules needs to be installed.
+ 
+Install them using pip by typing the following in the terminal.
+ 
+See https://pip.pypa.io/en/stable/installation/ for help installing pip.
+ 
+ python -m pip install Pillow
+ python -m pip install pandas
+ python -m pip install lxml
+
+ python -m pip install selenium
+ python -m pip install webdriver-manager
+
+ python -m pip install openpyxl
 
 >
 >
