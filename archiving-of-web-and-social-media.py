@@ -42,72 +42,92 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
 
 
-def get_webpage_metadata(url, option, driver):
-    # Depending on the option this gets different metadata from the url
+def tag_has_key_value(tag, key, value=None):
+    if value:
+        return tag.get_attribute(key) and tag.get_attribute(key).lower().strip() == value
+    return tag.get_attribute(key) and tag.get_attribute(key).strip()
 
-    # Open the web page
+
+def has_keywords_with_content(tag):
+    return tag_has_key_value(tag, "name", "keywords") and tag_has_key_value(tag, "content")
+
+
+def has_description_with_content(tag):
+    return tag_has_key_value(tag, "name", "description") and tag_has_key_value(tag, "content")
+
+
+def get_webpage_metadata_old(url, option, driver):
     driver.get(url)
-
-    # Swithc the different options
     if option == 1:  # get the metadata "Title"
         return_value = driver.title
     elif option == 2:  # get the metadata "keywords
         try:
-            # Find the meta tag with the name 'keywords'
-            meta_tags = driver.find_elements(By.TAG_NAME, "meta")
+            all_meta_tags = driver.find_elements(By.TAG_NAME, "meta")
 
-            keywords = None
-            # Iterate through all meta tags to find one with name="keywords" (case-insensitive)
-            for tag in meta_tags:
-                name_attr = tag.get_attribute("name")
-                if name_attr and name_attr.lower() == "keywords":
-                    keywords = tag.get_attribute("content")
-                    break
+            generator = (tag.get_attribute("content") for tag in all_meta_tags if has_keywords_with_content(tag))
 
-            if keywords is None:
-                return_value = "Inga Keywords specificerade för denna webbsida"
-            else:
-                return_value = keywords
+            return next(generator, "Inga Keywords specificerade för denna webbsida")
+
         except Exception as e:
             print("Keywords meta tag not found or an error occurred:", e)
-            return_value = "Inga Keywords specificerade för denna webbsida"
+            # return_value = "Inga Keywords specificerade för denna webbsida"
 
     elif option == 3:  # get the metadata "Description"
         try:
             # Get all meta tags
-            meta_tags = driver.find_elements(By.TAG_NAME, "meta")
+            all_meta_tags = driver.find_elements(By.TAG_NAME, "meta")
 
-            description = None
-            # Iterate through all meta tags to find one with name="description" (case-insensitive)
-            for tag in meta_tags:
-                name_attr = tag.get_attribute("name")
-                if name_attr and name_attr.lower() == "description":
-                    description = tag.get_attribute("content")
-                    break
+            generator = (tag.get_attribute("content") for tag in all_meta_tags if has_description_with_content(tag))
 
-            if description:
-                return_value = description
-            else:
-                return_value = "Ingen beskrivning specificerad för denna webbsida"
+            return next(generator, "Ingen beskrivning specificerad för denna webbsida")
+
         except Exception as e:
             print("An error occurred:", e)
-            return_value = "Ingen beskrivning specificerad för denna webbsida"
+            # return_value = "Ingen beskrivning specificerad för denna webbsida"
 
     print("returnvalue is:", return_value)
     return return_value
 
 
-def get_site(url):  # get the domain from the url ex. www.gislaved.se/somepage.html is www.gislaved.se
-    parsed_url = urlparse(url)
-    domain_with_subdomain = parsed_url.netloc
-    print(f"domain is {domain_with_subdomain}")
-    return domain_with_subdomain
+def get_webpage_metadata(url, driver):
+    driver.get(url)
+    title = driver.title
+    try:
+        all_meta_tags = driver.find_elements(By.TAG_NAME, "meta")
+
+        generator = (tag.get_attribute("content") for tag in all_meta_tags if has_keywords_with_content(tag))
+
+        keywords = next(generator, "Inga Keywords specificerade för denna webbsida")
+
+    except Exception as e:
+        keywords = "Inga Keywords specificerade för denna webbsida"
+        print("Error occurred trying to get Keywords data: :", e)
+
+    try:
+        all_meta_tags = driver.find_elements(By.TAG_NAME, "meta")
+
+        generator = (tag.get_attribute("content") for tag in all_meta_tags if has_description_with_content(tag))
+
+        description = next(generator, "Ingen beskrivning specificerad för denna webbsida")
+
+    except Exception as e:
+        description = "Ingen beskrivning specificerad för denna webbsida"
+        print("Error occurred trying to get description data: :", e)
+        
+    return title, keywords, description
 
 
-def create_xml_fgs(row, formatted_date, xml_file_name, tiff_image_name, folder_name, basmetadata_as_lists, driver):
+def get_domain_from_url(url):  # get the domain from the url ex. www.gislaved.se/somepage.html is www.gislaved.se
+    return urlparse(url).netloc
+    # parsed_url = urlparse(url)
+    # domain_with_subdomain = parsed_url.netloc
+    # print(f"domain is {domain_with_subdomain}")
+
+
+def create_xml_fgs(current_crawled_url_row, formatted_date, xml_file_name, tiff_image_name, folder_name, basmetadata_as_lists, driver):
     # Create XML data for FGS Webbsidor
-    url = row[0]
-    webbsida_text = row[1]
+    url = current_crawled_url_row[0]
+    webbsida_text = current_crawled_url_row[1]
     root = ET.Element("Leveransobjekt", attrib={"xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance", "xsi:noNamespaceSchemaLocation": "FREDA-GS-Webbsidor-v1_0.xsd", "xmlns": "freda"})
     dokument = ET.SubElement(root, "Dokument")
 
@@ -189,26 +209,24 @@ def create_xml_fgs(row, formatted_date, xml_file_name, tiff_image_name, folder_n
     forskningsdata = ET.SubElement(dokument, "Forskningsdata")
     forskningsdata.text = forskningsdata_text
 
-    domain = get_site(url)  # get the domain from the url ex. www.gislaved.se/somepage.html blir www. gislaved.se
+    domain = get_domain_from_url(url)  # get the domain from the url ex. www.gislaved.se/somepage.html blir www. gislaved.se
     site = ET.SubElement(dokument, "Site")
     site.text = domain
 
-    print(webbsida_text)
     webbsida = ET.SubElement(dokument, "Webbsida")
     webbsida.text = webbsida_text
 
     webbadress = ET.SubElement(dokument, "Webbadress")
     webbadress.text = url
 
-    title = get_webpage_metadata(url, 1, driver)  # get the metadata "Title" from the HTML in the current webpage
+    title, keywords, description = get_webpage_metadata(url, driver)
+
     web_page_title = ET.SubElement(dokument, "WebPageTitle")
     web_page_title.text = title
 
-    keywords = get_webpage_metadata(url, 2, driver)  # Get the metadata "Keywords" from the HTML in the current webpage
     web_page_keywords = ET.SubElement(dokument, "WebPageKeywords")
     web_page_keywords.text = keywords
 
-    description = get_webpage_metadata(url, 3, driver)  # Get the metadata "Description" from the HTML in the current webpage
     web_page_description = ET.SubElement(dokument, "WebPageDescription")
     web_page_description.text = description
 
@@ -562,6 +580,7 @@ def main():
 
     # Load the Excel file with a list of web pages for the current run
     pages = pd.read_excel('pages_gislaved_se_extern_webb.xlsx', sheet_name='webpage')
+    pages = pages.fillna("")
     # The following is the the two columns of the pages excel.
     # Webbadress	Webbsida
     # The first is the url to be crawled
@@ -631,9 +650,9 @@ def main():
         login_to_instagram(driver, instagram_user, instagram_password)  # use only when login to instagram is needed
 
     xml_valid = True
-    for row in pages_as_lists:  # loop all the web pages and create screenshots and FGS XML:s
+    for current_crawled_url_row in pages_as_lists:  # loop all the web pages and create screenshots and FGS XML:s
         if xml_valid:  # continue if last XML vas valid
-            url = row[0]
+            url = current_crawled_url_row[0]
 
             # create tiff file
             today = datetime.now()
@@ -646,7 +665,7 @@ def main():
             # creat FGS XML
             name_splitted = tiff_image_name.split(".")  # split the tiff name to get the first part
             xml_file_name = name_splitted[0] + ".xml"  # get the first part of the tiff name to set the xml file name
-            create_xml_fgs(row, formatted_date, xml_file_name, tiff_image_name, folder_name, basmetadata_as_lists, driver)
+            create_xml_fgs(current_crawled_url_row, formatted_date, xml_file_name, tiff_image_name, folder_name, basmetadata_as_lists, driver)
 
             # validate the XML against schema
             print(xml_file_name)
