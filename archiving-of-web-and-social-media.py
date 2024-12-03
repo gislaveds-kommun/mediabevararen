@@ -56,39 +56,6 @@ def has_description_with_content(tag):
     return tag_has_key_value(tag, "name", "description") and tag_has_key_value(tag, "content")
 
 
-def get_webpage_metadata_old(url, option, driver):
-    driver.get(url)
-    if option == 1:  # get the metadata "Title"
-        return_value = driver.title
-    elif option == 2:  # get the metadata "keywords
-        try:
-            all_meta_tags = driver.find_elements(By.TAG_NAME, "meta")
-
-            generator = (tag.get_attribute("content") for tag in all_meta_tags if has_keywords_with_content(tag))
-
-            return next(generator, "Inga Keywords specificerade för denna webbsida")
-
-        except Exception as e:
-            print("Keywords meta tag not found or an error occurred:", e)
-            # return_value = "Inga Keywords specificerade för denna webbsida"
-
-    elif option == 3:  # get the metadata "Description"
-        try:
-            # Get all meta tags
-            all_meta_tags = driver.find_elements(By.TAG_NAME, "meta")
-
-            generator = (tag.get_attribute("content") for tag in all_meta_tags if has_description_with_content(tag))
-
-            return next(generator, "Ingen beskrivning specificerad för denna webbsida")
-
-        except Exception as e:
-            print("An error occurred:", e)
-            # return_value = "Ingen beskrivning specificerad för denna webbsida"
-
-    print("returnvalue is:", return_value)
-    return return_value
-
-
 def get_webpage_metadata(url, driver):
     driver.get(url)
     title = driver.title
@@ -113,19 +80,14 @@ def get_webpage_metadata(url, driver):
     except Exception as e:
         description = "Ingen beskrivning specificerad för denna webbsida"
         print("Error occurred trying to get description data: :", e)
-        
     return title, keywords, description
 
 
-def get_domain_from_url(url):  # get the domain from the url ex. www.gislaved.se/somepage.html is www.gislaved.se
+def get_domain_from_url(url):
     return urlparse(url).netloc
-    # parsed_url = urlparse(url)
-    # domain_with_subdomain = parsed_url.netloc
-    # print(f"domain is {domain_with_subdomain}")
 
 
 def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basmetadata_as_lists, driver):
-    # Create XML data for FGS Webbsidor
     url = url_and_metadata_for_website[0]
     webbsida = url_and_metadata_for_website[1]
     root = ET.Element("Leveransobjekt", attrib={"xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance", "xsi:noNamespaceSchemaLocation": "FREDA-GS-Webbsidor-v1_0.xsd", "xmlns": "freda"})
@@ -142,8 +104,7 @@ def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, 
                 ET.SubElement(dokument, "Arkiveringsdatum").text = formatted_date
                 ET.SubElement(dokument, basmetadata_row[0]).text = str(basmetadata_row[1])
             elif basmetadata_row[0].lower() == "kommentar":
-                domain = get_domain_from_url(url)
-                ET.SubElement(dokument, "Site").text = domain
+                ET.SubElement(dokument, "Site").text = get_domain_from_url(url)
                 ET.SubElement(dokument, "Webbsida").text = webbsida
                 ET.SubElement(dokument, "Webbadress").text = url
                 title, keywords, description = get_webpage_metadata(url, driver)
@@ -158,16 +119,13 @@ def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, 
 
     ET.SubElement(root, "DokumentFilnamn").text = tiff_image_name
 
-    # Create an ElementTree object with the XML declaration
     declaration = '<?xml version="1.0" encoding="UTF-8"?>\n'
     xml_string = declaration + ET.tostring(root, encoding="utf-8", method="xml").decode()
 
     dom = xml.dom.minidom.parseString(xml_string)
 
     formatted_xml = dom.toprettyxml(indent="  ", encoding="UTF-8").decode("UTF-8")
-    # Create a string representation of the XML with formatting
 
-    # Save the formatted XML to a file
     xml_file_path = folder_name + "/" + xml_file_name
     with open(xml_file_path, "w", encoding="utf-8") as file:
         file.write(formatted_xml)
@@ -175,25 +133,18 @@ def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, 
 
 def validate_xml(xml_file, xsd_file):
     try:
-        # Parse XML
         with open(xml_file, 'rb') as file:
             xml_doc = etree.parse(file, parser=etree.XMLParser(encoding='utf-8'))
-
-        # Load XSD schema
         schema = etree.XMLSchema(file=xsd_file)
-
-        # Validate XML against the schema
         schema.assertValid(xml_doc)
-
         print("Validation successful.")
         return True
 
     except etree.XMLSyntaxError as e:
         print(f"XML syntax error: {e}")
-        return False
     except etree.DocumentInvalid as e:
         print(f"Validation error: {e}")
-        # return False
+    return False
 
 
 def login_to_instagram(driver, instagram_user, instagram_password):
