@@ -124,123 +124,39 @@ def get_domain_from_url(url):  # get the domain from the url ex. www.gislaved.se
     # print(f"domain is {domain_with_subdomain}")
 
 
-def create_xml_fgs(current_crawled_url_row, formatted_date, xml_file_name, tiff_image_name, folder_name, basmetadata_as_lists, driver):
+def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basmetadata_as_lists, driver):
     # Create XML data for FGS Webbsidor
-    url = current_crawled_url_row[0]
-    webbsida_text = current_crawled_url_row[1]
+    url = url_and_metadata_for_website[0]
+    webbsida = url_and_metadata_for_website[1]
     root = ET.Element("Leveransobjekt", attrib={"xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance", "xsi:noNamespaceSchemaLocation": "FREDA-GS-Webbsidor-v1_0.xsd", "xmlns": "freda"})
     dokument = ET.SubElement(root, "Dokument")
 
-    # Get the basmetadata from the excel list
     for basmetadata_row in basmetadata_as_lists:
-        print(basmetadata_row[0])
-        print(basmetadata_row[1])
-        if basmetadata_row[0] == "Organisation":
-            organisation_text = basmetadata_row[1]
-        elif basmetadata_row[0] == "Arkivbildare":
-            arkivbildare_text = basmetadata_row[1]
-        elif basmetadata_row[0] == "Arkivbildarenhet":
-            arkivbildareenhet_text = basmetadata_row[1]
-        elif basmetadata_row[0] == "Arkiv":
-            arkiv_text = basmetadata_row[1]
-        elif basmetadata_row[0] == "Serie ":
-            serie_text = basmetadata_row[1]
-        elif basmetadata_row[0] == "Klassificeringsstruktur":
-            klassificeringsstruktur_text = basmetadata_row[1]
-        elif basmetadata_row[0] == "nivå1":
-            niva1_text = str(basmetadata_row[1])
-        elif basmetadata_row[0] == "nivå2":
-            niva2_text = str(basmetadata_row[1])
-        elif basmetadata_row[0] == "nivå3":
-            niva3_text = str(basmetadata_row[1])
-        elif basmetadata_row[0] == "Ursprung":
-            ursprung_text = basmetadata_row[1]
-        elif basmetadata_row[0] == "Sekretess":
-            sekretess_text = str(basmetadata_row[1])
-        elif basmetadata_row[0] == "Personuppgifter":
-            personuppgifter_text = str(basmetadata_row[1])
-        elif basmetadata_row[0] == "Forskningsdata":
-            forskningsdata_text = str(basmetadata_row[1])
-        elif basmetadata_row[0] == "Kommentar":
-            kommentar_text = basmetadata_row[1]
+        if basmetadata_row[1] is not None:
+            if basmetadata_row[0].lower() == "nivå1":
+                process_strukturerat = ET.SubElement(dokument, "ProcessStrukturerat")            
+                ET.SubElement(process_strukturerat, basmetadata_row[0].lower()).text = str(basmetadata_row[1])
+            elif basmetadata_row[0].lower() == "nivå2" or basmetadata_row[0] == "nivå3":
+                ET.SubElement(process_strukturerat, basmetadata_row[0].lower()).text = str(basmetadata_row[1])
+            elif basmetadata_row[0].lower() == "sekretess":
+                ET.SubElement(dokument, "Arkiveringsdatum").text = formatted_date
+                ET.SubElement(dokument, basmetadata_row[0]).text = str(basmetadata_row[1])
+            elif basmetadata_row[0].lower() == "kommentar":
+                domain = get_domain_from_url(url)
+                ET.SubElement(dokument, "Site").text = domain
+                ET.SubElement(dokument, "Webbsida").text = webbsida
+                ET.SubElement(dokument, "Webbadress").text = url
+                title, keywords, description = get_webpage_metadata(url, driver)
+                ET.SubElement(dokument, "WebPageTitle").text = title
+                ET.SubElement(dokument, "WebPageKeywords").text = keywords
+                ET.SubElement(dokument, "WebPageDescription").text = description
+                ET.SubElement(dokument, "WebPageCurrentURL").text = url
+                ET.SubElement(dokument, "Informationsdatum").text = formatted_date
+                ET.SubElement(dokument, basmetadata_row[0]).text = str(basmetadata_row[1])
+            else:
+                ET.SubElement(dokument, basmetadata_row[0]).text = str(basmetadata_row[1])
 
-    # Set all the nodes in the FGS XML
-    organisation = ET.SubElement(dokument, "Organisation")
-    organisation.text = organisation_text
-
-    arkivbildare = ET.SubElement(dokument, "Arkivbildare")
-    arkivbildare.text = arkivbildare_text
-
-    arkivbildarenhet = ET.SubElement(dokument, "Arkivbildarenhet")
-    arkivbildarenhet.text = arkivbildareenhet_text
-
-    arkiv = ET.SubElement(dokument, "Arkiv")
-    arkiv.text = arkiv_text
-
-    serie = ET.SubElement(dokument, "Serie")
-    serie.text = serie_text
-
-    klasstrukt = ET.SubElement(dokument, "KlassificeringsstrukturText")
-    klasstrukt.text = klassificeringsstruktur_text
-
-    process_strukturerat = ET.SubElement(dokument, "ProcessStrukturerat")
-
-    niva1 = ET.SubElement(process_strukturerat, "nivå1")
-    niva1.text = niva1_text
-
-    niva2 = ET.SubElement(process_strukturerat, "nivå2")
-    niva2.text = niva2_text
-
-    niva3 = ET.SubElement(process_strukturerat, "nivå3")
-    niva3.text = niva3_text
-
-    ursprung = ET.SubElement(dokument, "Ursprung")
-    ursprung.text = ursprung_text
-
-    datum = ET.SubElement(dokument, "Arkiveringsdatum")
-    datum.text = formatted_date
-
-    sekretess = ET.SubElement(dokument, "Sekretess")
-    sekretess.text = sekretess_text
-
-    personuppgifter = ET.SubElement(dokument, "Personuppgifter")
-    personuppgifter.text = personuppgifter_text
-
-    forskningsdata = ET.SubElement(dokument, "Forskningsdata")
-    forskningsdata.text = forskningsdata_text
-
-    domain = get_domain_from_url(url)  # get the domain from the url ex. www.gislaved.se/somepage.html blir www. gislaved.se
-    site = ET.SubElement(dokument, "Site")
-    site.text = domain
-
-    webbsida = ET.SubElement(dokument, "Webbsida")
-    webbsida.text = webbsida_text
-
-    webbadress = ET.SubElement(dokument, "Webbadress")
-    webbadress.text = url
-
-    title, keywords, description = get_webpage_metadata(url, driver)
-
-    web_page_title = ET.SubElement(dokument, "WebPageTitle")
-    web_page_title.text = title
-
-    web_page_keywords = ET.SubElement(dokument, "WebPageKeywords")
-    web_page_keywords.text = keywords
-
-    web_page_description = ET.SubElement(dokument, "WebPageDescription")
-    web_page_description.text = description
-
-    web_page_current_url = ET.SubElement(dokument, "WebPageCurrentURL")
-    web_page_current_url.text = url
-
-    informationsdatum = ET.SubElement(dokument, "Informationsdatum")
-    informationsdatum.text = formatted_date
-
-    kommentar = ET.SubElement(dokument, "Kommentar")
-    kommentar.text = kommentar_text
-
-    dokument_filnamn = ET.SubElement(root, "DokumentFilnamn")
-    dokument_filnamn.text = tiff_image_name
+    ET.SubElement(root, "DokumentFilnamn").text = tiff_image_name
 
     # Create an ElementTree object with the XML declaration
     declaration = '<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -650,9 +566,9 @@ def main():
         login_to_instagram(driver, instagram_user, instagram_password)  # use only when login to instagram is needed
 
     xml_valid = True
-    for current_crawled_url_row in pages_as_lists:  # loop all the web pages and create screenshots and FGS XML:s
+    for url_and_metadata_for_website in pages_as_lists:  # loop all the web pages and create screenshots and FGS XML:s
         if xml_valid:  # continue if last XML vas valid
-            url = current_crawled_url_row[0]
+            url = url_and_metadata_for_website[0]
 
             # create tiff file
             today = datetime.now()
@@ -665,7 +581,7 @@ def main():
             # creat FGS XML
             name_splitted = tiff_image_name.split(".")  # split the tiff name to get the first part
             xml_file_name = name_splitted[0] + ".xml"  # get the first part of the tiff name to set the xml file name
-            create_xml_fgs(current_crawled_url_row, formatted_date, xml_file_name, tiff_image_name, folder_name, basmetadata_as_lists, driver)
+            create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basmetadata_as_lists, driver)
 
             # validate the XML against schema
             print(xml_file_name)
