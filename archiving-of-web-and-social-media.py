@@ -98,7 +98,7 @@ def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, 
             if basmetadata_row[0].lower() == "nivå1":
                 process_strukturerat = ET.SubElement(dokument, "ProcessStrukturerat")            
                 ET.SubElement(process_strukturerat, basmetadata_row[0].lower()).text = str(basmetadata_row[1])
-            elif basmetadata_row[0].lower() == "nivå2" or basmetadata_row[0] == "nivå3":
+            elif basmetadata_row[0].lower() == "nivå2" or basmetadata_row[0].lower() == "nivå3":
                 ET.SubElement(process_strukturerat, basmetadata_row[0].lower()).text = str(basmetadata_row[1])
             elif basmetadata_row[0].lower() == "sekretess":
                 ET.SubElement(dokument, "Arkiveringsdatum").text = formatted_date
@@ -306,47 +306,29 @@ def capture_full_page_screenshot_with_custom_width(output_path, width, driver, t
     except Exception as e:
         print(f"Error during page load: {e}")
 
-    # 1 is External web gislaved.se
-    # 2 is Internal web insidan.gislaved.se
-    # 3 is Facebook
-    # 4 is LinkedIn
-    # 5 is Instagram
-    if type_of_web_extraction == 1:
-        # 1 is External web gislaved.se
-        try:  # try to click the cookies button för gislaved.se
-            button = driver.find_element(By.XPATH, "//button[contains(@class, 'env-button--primary') and text()='Godkänn alla kakor']")
-            button.click()
-        except Exception as e:
-            print(f"Error click button cookies: {e}")
+    match type_of_web_extraction.lower():
+        case "gislaved.se":
+            try:  # try to click the cookies button för gislaved.se
+                button = driver.find_element(By.XPATH, "//button[contains(@class, 'env-button--primary') and text()='Godkänn alla kakor']")
+                button.click()
+            except Exception as e:
+                print(f"Error click button cookies: {e}")        
+        case "Linkedin":
+            try:
+                dismiss_button = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Avvisa"]'))
+                )
+                dismiss_button.click()
 
-    elif type_of_web_extraction == 2:
-        # 2 is Internal web insidan.gislaved.se
-        pass
-    elif type_of_web_extraction == 3:
-        # 3 is Facebook
-        pass
-    elif type_of_web_extraction == 4:
-        try:
-            # Wait for the button to be clickable (using aria-label)
-            dismiss_button = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Avvisa"]'))
-            )
-            # Click the button
-            dismiss_button.click()
-
-        except Exception as e:
-            print(f"Error: {e}")
-
-    elif type_of_web_extraction == 5:
-        # 5 is Instagram
-        try:  # try to close the login bannar on instagram
-            element = driver.find_element(By.XPATH, '//span[@aria-label="Stäng"]')
-
-            # Use ActionChains to click
-            actions = ActionChains(driver)
-            actions.move_to_element(element).click().perform()
-        except Exception as e:
-            print(f"Error click  login button s: {e}")
+            except Exception as e:
+                print(f"Error: {e}")
+        case "instagram":
+            try:  # try to close the login bannar on instagram
+                element = driver.find_element(By.XPATH, '//span[@aria-label="Stäng"]')
+                actions = ActionChains(driver)
+                actions.move_to_element(element).click().perform()
+            except Exception as e:
+                print(f"Error click  login button s: {e}")
 
     driver.implicitly_wait(5)
 
@@ -389,38 +371,36 @@ def create_tiff_screenshot(url, formatted_date_file, folder_name, width, driver,
     return tiff_image_name
 
 
-def create_package_creator_config(basmetadata_as_lists, folder_name, schema, contract):
-    # This is used for creating a config file that the next process "Package creator" is using to creata zip file for the LTA archive
+def create_package_creator_config(basmetadata_as_lists, folder_name, schema, contract, systemnamn):
+    # This is used for creating a config file that the next process "Package creator" is using to create zip file for the LTA archive
     for basmetadata_row in basmetadata_as_lists:  # get some om the basmetadata to put in config file
         if basmetadata_row[0] == "Arkivbildare":
             arkivbildare_text = basmetadata_row[1]
         elif basmetadata_row[0] == "Ursprung":
             ursprung_text = basmetadata_row[1]
 
-    arkivbildare_cleaned = arkivbildare_text.split("(")[0]  # clean the arkivbildare from ending (aaa)
+    arkivbildare_cleaned = arkivbildare_text.split("(")[0]  # clean the arkivbildare from ending (abc)
     arkivbildare_cleaned = re.sub('[^a-zA-Z]', '', arkivbildare_cleaned)  # clean arkivbildare from everythhing but a-z
 
-    systemnamn = "Webbsidor"  # if you want the basmetadata "Ursprung" instead set this to ""
-    if systemnamn:  # "systemnamn" can be whatever you set it here if that is aproriate for package creator
-        systemnamn_config = systemnamn
-    else:
-        systemnamn_config = ursprung_text  # otherwise it is from variable "Ursprung" if it is from a system like Castor
-
+    systemnamn_config = systemnamn if systemnamn.strip() else ursprung_text
     systemnamn_config_cleaned = re.sub('[^a-zA-Z]', '', systemnamn_config)
 
     # List with config data
-    data = [("Agent 1 Namn", arkivbildare_text), ("Agent 1 Kommentar", "ORG:212000-0514"), ("Agent 2 Namn", systemnamn_config), ("Agent 3 Namn", arkivbildare_text), ("Leverans", "Gislaved-webb-1"), ("Arkivbildare", arkivbildare_cleaned), ("Systemnamn", systemnamn_config_cleaned), ("Schema", schema), ("Contract", contract)]
+    data = [("Agent 1 Namn", arkivbildare_text), 
+            ("Agent 1 Kommentar", "ORG:212000-0514"),
+            ("Agent 2 Namn", systemnamn_config),
+            ("Agent 3 Namn", arkivbildare_text),
+            ("Leverans", "Gislaved-webb-1"),
+            ("Arkivbildare", arkivbildare_cleaned),
+            ("Systemnamn", systemnamn_config_cleaned),
+            ("Schema", schema), ("Contract", contract)]
 
-    # Create a workbook and select the active worksheet
     wb = Workbook()
     ws = wb.active
-
-    # Write config data to the worksheet
     for row in data:
         ws.append(row)
 
     config_file_path = folder_name + "\\Package-Creator-Metadata.xlsx"
-    # Save the workbook
     wb.save(config_file_path)
 
 
@@ -434,17 +414,19 @@ def main():
     linkedin_password = "your linkedin password"
     facebook_user = "your facebook user"
     facebook_password = "your facebook password"
-    type_of_web_extraction = 1  # 1 is External web gislaved.se
-    # 2 is Internal web insidan.gislaved.se
-    # 3 is Facebook
-    # 4 is LinkedIn
-    # 5 is Instagram
+    type_of_web_extraction = "gislaved.se"
+    # gislaved.se
+    # insidan.gislaved.se
+    # Facebook
+    # LinkedIn
+    # Instagram
 
     headless = False  # adjust this to true to get full height. False för debugging to see how buttons are clicked
 
     xsd_file = "FREDA-GS-Webbsidor-v1_0.xsd"  # xsd file for validation of FGS change to your own
     contract = "Contract_2020-02-24-13-03-23-WEB.xml"  # contract file for LTA upload
 
+    systemnamn = "Webbsidor"  # "Webbsidor"  #if you want package creator systemnamn to be the basmetadata "Ursprung" instead set this to empty string ("")
     # Load the Excel file with a list of web pages for the current run
     pages = pd.read_excel('pages_gislaved_se_extern_webb.xlsx', sheet_name='webpage')
     pages = pages.fillna("")
@@ -509,11 +491,11 @@ def main():
 
     driver.maximize_window()
 
-    if type_of_web_extraction == 3:
+    if type_of_web_extraction.lower() == "facebook":
         login_to_facebook(driver, facebook_user, facebook_password)  # use only when login to facebokk is nedded
-    elif type_of_web_extraction == 4:
+    elif type_of_web_extraction.lower() == "linkedin":
         login_to_linkedin(driver, linkedin_user, linkedin_password)  # use only when logim to linkedIn is nedded
-    elif type_of_web_extraction == 5:
+    elif type_of_web_extraction.lower == "instagram":
         login_to_instagram(driver, instagram_user, instagram_password)  # use only when login to instagram is needed
 
     xml_valid = True
@@ -544,7 +526,8 @@ def main():
 
     # create the config file for package creator
     driver.quit()
-    create_package_creator_config(basmetadata_as_lists, folder_name, xsd_file, contract)
+    
+    create_package_creator_config(basmetadata_as_lists, folder_name, xsd_file, contract, systemnamn)
 
 
 # Run the main function
