@@ -345,51 +345,57 @@ def capture_full_page_screenshot_with_custom_width(output_path, width, driver, t
 
 
 def convert_png_to_tiff(input_path_png, output_path_tiff):
-    # Open the PNG image and convert it to TIFF
     image = Image.open(input_path_png)
     image.save(output_path_tiff, format='TIFF')
 
 
-def create_tiff_screenshot(url, formatted_date_file, folder_name, width, driver, type_of_web_extraction):
-    print(url)
-    filename = url[:50] if isinstance(url, str) else str(url)[:20]  # get the 50 first chars from the web page url
-    cleaned_filename = filename.split("//")[1]  # clean the url from the first part
-    cleaned_filename = re.sub('[^a-zA-Z]', "_", cleaned_filename)  # clean unwanted chars from the filename
-    cleaned_filename = cleaned_filename + "_" + formatted_date_file  # add the current date and time to get a unic filename
+def replace_unwanted_chars(filename, replacement):
+    return re.sub('[^a-zA-Z]', replacement, filename)  
 
-    print(f"Processing {cleaned_filename}")
 
-    output_path_png = "image_temp/" + cleaned_filename + '.png'  # set png in a temp folder
-    tiff_image_name = cleaned_filename + '.tif'
-    output_path_tiff = folder_name + "/" + tiff_image_name  # set the path form the tiff
-    # Set desired width in pixels
+def get_part_of_string(input_string, split_by, part):
+    return input_string.split(split_by)[part]
+
+
+def create_file_name(url):
+    filename_first_50_chars_in_url = str(url)[:50]  
+    second_part_of_filename = get_part_of_string(filename_first_50_chars_in_url, "//", 1)
+    cleaned_filename = replace_unwanted_chars(second_part_of_filename, "_")
+    unic_filename_date_time = cleaned_filename + "_" + datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+    return unic_filename_date_time
+
+
+def create_tiff_screenshot(url, folder_name, width, driver, type_of_web_extraction):
+    filename = create_file_name(url)
+    print(f"Processing {filename}")
+    output_path_png = "image_temp/" + filename + '.png'  
+    tiff_image_name = filename + '.tif'
+    output_path_tiff = folder_name + "/" + tiff_image_name  
 
     capture_full_page_screenshot_with_custom_width(output_path_png, width, driver, type_of_web_extraction)  # t take the screenshot
 
-    # Convert PNG to TIFF
-    convert_png_to_tiff(output_path_png, output_path_tiff)  # convert png to tiff
+    convert_png_to_tiff(output_path_png, output_path_tiff)  
     return tiff_image_name
 
 
 def create_package_creator_config(basmetadata_as_lists, folder_name, schema, contract, systemnamn):
-    # This is used for creating a config file that the next process "Package creator" is using to create zip file for the LTA archive
-    for basmetadata_row in basmetadata_as_lists:  # get some om the basmetadata to put in config file
-        if basmetadata_row[0] == "Arkivbildare":
-            arkivbildare_text = basmetadata_row[1]
-        elif basmetadata_row[0] == "Ursprung":
-            ursprung_text = basmetadata_row[1]
+    for basmetadata_row in basmetadata_as_lists:
+        if basmetadata_row[0].lower() == "arkivbildare":
+            arkivbildare = basmetadata_row[1]
+        elif basmetadata_row[0].lower() == "ursprung":
+            ursprung = basmetadata_row[1]
 
-    arkivbildare_cleaned = arkivbildare_text.split("(")[0]  # clean the arkivbildare from ending (abc)
-    arkivbildare_cleaned = re.sub('[^a-zA-Z]', '', arkivbildare_cleaned)  # clean arkivbildare from everythhing but a-z
+    first_part_of_arkivbildare = get_part_of_string(arkivbildare, "(", 0)
+    arkivbildare_cleaned = replace_unwanted_chars(first_part_of_arkivbildare, '')
 
-    systemnamn_config = systemnamn if systemnamn.strip() else ursprung_text
-    systemnamn_config_cleaned = re.sub('[^a-zA-Z]', '', systemnamn_config)
+    systemnamn_config = systemnamn if systemnamn.strip() else ursprung
+    systemnamn_config_cleaned = replace_unwanted_chars(systemnamn_config, '')
 
-    # List with config data
-    data = [("Agent 1 Namn", arkivbildare_text), 
+    data = [("Agent 1 Namn", arkivbildare), 
             ("Agent 1 Kommentar", "ORG:212000-0514"),
+
             ("Agent 2 Namn", systemnamn_config),
-            ("Agent 3 Namn", arkivbildare_text),
+            ("Agent 3 Namn", arkivbildare),
             ("Leverans", "Gislaved-webb-1"),
             ("Arkivbildare", arkivbildare_cleaned),
             ("Systemnamn", systemnamn_config_cleaned),
@@ -465,7 +471,7 @@ def main():
     today = datetime.now()
     # Format the date as 'YYYY-MM-DD'
     formatted_date = today.strftime('%Y-%m-%d')
-    formatted_date_time = today.strftime('%Y %m %d %H %M')
+    formatted_date_time = today.strftime('%Y-%m-%d-%H-%M-%S')
 
     # Directory name for the folder for the current run with the current date and time
     folder_name = "files for package creator " + formatted_date_time
@@ -502,13 +508,8 @@ def main():
     for url_and_metadata_for_website in pages_as_lists:  # loop all the web pages and create screenshots and FGS XML:s
         if xml_valid:  # continue if last XML vas valid
             url = url_and_metadata_for_website[0]
-
-            # create tiff file
-            today = datetime.now()
-            formatted_date_file = today.strftime('%Y-%m-%d-%H-%M-%S')  # set the date to for the file name ending to create a unic name
-            print(f"file date {formatted_date_file}")
             driver.get(url)
-            tiff_image_name = create_tiff_screenshot(url, formatted_date_file, folder_name, width, driver, type_of_web_extraction)
+            tiff_image_name = create_tiff_screenshot(url, folder_name, width, driver, type_of_web_extraction)
             print(f"converted to tif {tiff_image_name}")
 
             # creat FGS XML
