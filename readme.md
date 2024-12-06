@@ -1,16 +1,16 @@
 # About
-> A python script to harvest screenshoots from **websites and social media** and prepare them for archiving in the **E-archive LTA**.
+> A python script to harvest screenshots from **websites and social media** and prepare them for archiving in the **E-archive LTA**.
 > 
 # Features
->Takes screenshoots of webpages or social media as **tiff** which is a archiveable image format.
+>Takes screenshots of webpages or social media as **tiff** which is an archiveable image format.
 >
->Creates XML with metadata to each screenshoot in **FGS archive XML** format.
+>Creates XML with metadata to each screenshot in **FGS archive XML** format.
 >
->The **FGS XML structure** is based on **FREDA which is an E-archive cooperation with municipalities in Jönkpings Län**.
+>The **FGS XML structure** is based on **FREDA which is an E-archive cooperation with municipalities in Jönköpings Län**.
 >
 >Some of the **metadata** in the **FGS XML** comes from an **excel file (Basmetadata)** and others are extracted from **the current crawled website**.
 >
->Validates the FGS XML with .XSD file whith the structur of **FREDA FGS XML for Websites**.
+>Validates the FGS XML with .XSD file with the structure of **FREDA FGS XML for Websites**.
 >
 >Creates a file **Package-Creator-Metadata.xlsx** that is to be used by another script or process to build the final package with LTA:s software **Package Creator**.
 >
@@ -34,6 +34,7 @@ See https://pip.pypa.io/en/stable/installation/ for help installing pip.
 >python -m pip install selenium
 >python -m pip install webdriver-manager
 >python -m pip install openpyxl
+>python -m pip pip install python-dotenv
 
 # Usage
 >Open **Spyder** (comes with **Anaconda**)
@@ -65,22 +66,23 @@ See https://pip.pypa.io/en/stable/installation/ for help installing pip.
 >
 >**facebook_password** = "your facebook password"
 >
->**type_of_web_extraction** = 1  Select 1-5 for different types of web extractions.
+>**type_of_web_extraction**  Select for different types of web extractions.
+>Gislaved.se   
+>
+>Insidan.gislaved.se
+>
+>Facebook
+>
+>LinkedIn
+>
+>Instagram
 >
 >You probably have to adjust the button clicks in the code to adjust to the webpage you are crawling.
->The button clicks on these types is set for example to the current cookie banner that needs to be clicked. This might change over time when websites are uppdated. That requieres changes in the code not in the configuration settings.
+>The button clicks on these types is set for example to the current cookie banner that needs to be clicked. This might change over time when websites are updated. That requieres changes in the code not in the configuration settings.
 >
->1 is External web gislaved.se   
+
 >
->2 is Internal web insidan.gislaved.se
->
->3 is Facebook
->
->4 is LinkedIn
->
->5 is Instagram
->
->**headless** = True or False : Adjust this to true to get full height. False för debugging to see how buttons are clicked but then full height is not saved in the screenshoot.
+>**headless** = True or False : Adjust this to true to get full height. False for debugging to see how buttons are clicked but then full height is not saved in the screenshot.
 >
 >**xsd_file** = "FREDA-GS-Webbsidor-v1_0.xsd" XSD file for validation of FGS change to your own.
 >
@@ -88,7 +90,7 @@ See https://pip.pypa.io/en/stable/installation/ for help installing pip.
 >
 >Load the Excel file with a list of web pages for the current run.
 >
->**pages** = pd.read_excel('**pages_gislaved_se_extern_webb.xlsx**', sheet_name='webpage')
+>**pages**
 >
 >The following is the two columns of the pages excel.
 >
@@ -99,11 +101,10 @@ See https://pip.pypa.io/en/stable/installation/ for help installing pip.
 >
 >load the excel file with a list of basmetadata for the  current run.
 >
->**basmetadata** = pd.read_excel('**basmetadata_extern_webb.xlsx**', sheet_name='basmetadata')
+>**basmetadata**
 >
 >The following is the first column of the excel with basmetadata. The second column is for the values.
 >
->**Basmetadata**
 >
 >Organisation
 >
