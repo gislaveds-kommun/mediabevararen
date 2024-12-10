@@ -40,22 +40,28 @@ from openpyxl import Workbook
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
 from dotenv import load_dotenv
+import constants as const
 
-PATH_TO_IMAGE_TEMP = "image_temp"
-NO_KEYWORDS_TEXT = "Inga Keywords specificerade för denna webbsida"
-NO_DESCRIPTION_TEXT = "Ingen beskrivning specificerad för denna webbsida"
-PATH_TO_INSTAGRAM = "https://www.instagram.com"
-PATH_TO_LINKEDIN = "https://www.linkedin.com/login/sv?fromSignIn=true&trk=guest_homepage-basic_nav-header-signin"
-PATH_TO_FACEBOOK = "https://www.facebook.com/"
-GISLAVED_SE_COOKIE_BUTTON = "//button[contains(@class, 'env-button--primary') and text()='Godkänn alla kakor']"
-INSTAGRAM_LOGIN_BANNER = '//span[@aria-label="Stäng"]' 
-INSTAGRAM_COOKIE_BANNER = "//button[contains(@class, '_a9--') and text()='Tillåt alla cookies']"
-INSTAGRAM_LOGIN_BUTTON = "//div[contains(text(), 'Logga in')]"
-LINKEDIN_LOGIN_BUTTON = '//button[@aria-label="Logga in"]'
-LINKEDIN_ACCEPT_BUTTON1 = '//button[text()="Acceptera"]'
-LINKEDIN_ACCEPT_BUTTON2 = '//span[text()="Acceptera"]'
-LINKEDIN_REJECT_BUTTON = 'button[aria-label="Avvisa"]'
-FACEBBOK_COOKIE_BANNER = "//span[text()='Tillåt alla cookies']"
+
+def convert_png_to_tiff(input_path_png, output_path_tiff):
+    image = Image.open(input_path_png)
+    image.save(output_path_tiff, format='TIFF')
+
+
+def replace_unwanted_chars(filename, replacement):
+    return re.sub('[^a-zA-Z]', replacement, filename)  
+
+
+def get_part_of_string(input_string, split_by, part):
+    return input_string.split(split_by)[part]
+
+
+def create_file_name(url):
+    filename_first_50_chars_in_url = str(url)[:50]
+    second_part_of_filename = get_part_of_string(filename_first_50_chars_in_url, "//", 1)
+    cleaned_filename = replace_unwanted_chars(second_part_of_filename, "_")
+    unique_filename_date_time = cleaned_filename + "_" + datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+    return unique_filename_date_time
 
 
 def tag_has_key_value(tag, key, value=None):
@@ -72,6 +78,18 @@ def has_description_with_content(tag):
     return tag_has_key_value(tag, "name", "description") and tag_has_key_value(tag, "content")
 
 
+def get_domain_from_url(url):
+    return urlparse(url).netloc
+
+
+def prepare_and_clean_basmetadata(basmetadata):
+    basmetadata.columns = basmetadata.columns.str.strip()
+    basmetadata.index = basmetadata.index.str.strip()
+    basmetadata.columns = basmetadata.columns.str.lower()
+    basmetadata.index = basmetadata.index.str.lower()
+    return basmetadata
+
+
 def get_webpage_metadata(url, driver):
     driver.get(url)
     title = driver.title
@@ -80,10 +98,10 @@ def get_webpage_metadata(url, driver):
 
         generator = (tag.get_attribute("content") for tag in all_meta_tags if has_keywords_with_content(tag))
 
-        keywords = next(generator, NO_KEYWORDS_TEXT)
+        keywords = next(generator, const.NO_KEYWORDS_TEXT)
 
     except Exception as e:
-        keywords = NO_KEYWORDS_TEXT
+        keywords = const.NO_KEYWORDS_TEXT
         print("Error occurred trying to get Keywords data: :", e)
 
     try:
@@ -91,16 +109,12 @@ def get_webpage_metadata(url, driver):
 
         generator = (tag.get_attribute("content") for tag in all_meta_tags if has_description_with_content(tag))
 
-        description = next(generator, NO_DESCRIPTION_TEXT)
+        description = next(generator, const.NO_DESCRIPTION_TEXT)
 
     except Exception as e:
-        description = NO_DESCRIPTION_TEXT
+        description = const.NO_DESCRIPTION_TEXT
         print("Error occurred trying to get description data: :", e)
     return title, keywords, description
-
-
-def get_domain_from_url(url):
-    return urlparse(url).netloc
 
 
 def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basmetadata, driver):
@@ -165,12 +179,12 @@ def validate_xml(xml_file, xsd_file):
 
 
 def login_to_instagram(driver, instagram_user, instagram_password):
-    driver.get(PATH_TO_INSTAGRAM)
+    driver.get(const.PATH_TO_INSTAGRAM)
     seconds_to_wait_for_page_to_load = 10
     driver.implicitly_wait(seconds_to_wait_for_page_to_load)
 
     try:
-        driver.find_element(By.XPATH, INSTAGRAM_COOKIE_BANNER).click()
+        driver.find_element(By.XPATH, const.INSTAGRAM_COOKIE_BANNER).click()
     except Exception as e:
         print(f"Error click button cookies: {e}")
 
@@ -182,19 +196,19 @@ def login_to_instagram(driver, instagram_user, instagram_password):
     password_field.clear()
     password_field.send_keys(instagram_password)
 
-    driver.find_element(By.XPATH, INSTAGRAM_LOGIN_BUTTON).click()
+    driver.find_element(By.XPATH, const.INSTAGRAM_LOGIN_BUTTON).click()
 
 
 def login_to_linkedin(driver, linkedin_user, linkedin_password):
 
-    driver.get(PATH_TO_LINKEDIN)
+    driver.get(const.PATH_TO_LINKEDIN)
     seconds_to_wait_for_page_to_load = 10
     seconds_to_wait_item_present = 10
     driver.implicitly_wait(seconds_to_wait_for_page_to_load)
 
     try:
         accept_button = WebDriverWait(driver, seconds_to_wait_item_present).until(
-            EC.element_to_be_clickable((By.XPATH, LINKEDIN_ACCEPT_BUTTON1))
+            EC.element_to_be_clickable((By.XPATH, const.LINKEDIN_ACCEPT_BUTTON1))
         )
         accept_button.click()
     except Exception as e:
@@ -209,13 +223,13 @@ def login_to_linkedin(driver, linkedin_user, linkedin_password):
     password_field.send_keys(linkedin_password)
 
     login_button = WebDriverWait(driver, seconds_to_wait_item_present).until(
-        EC.element_to_be_clickable((By.XPATH, LINKEDIN_LOGIN_BUTTON))
+        EC.element_to_be_clickable((By.XPATH, const.LINKEDIN_LOGIN_BUTTON))
     )
     login_button.click()
 
     try:
         accept_button = WebDriverWait(driver, seconds_to_wait_item_present).until(
-            EC.element_to_be_clickable((By.XPATH, LINKEDIN_ACCEPT_BUTTON2))
+            EC.element_to_be_clickable((By.XPATH, const.LINKEDIN_ACCEPT_BUTTON2))
         )
         accept_button.click()
     except Exception as e:
@@ -223,7 +237,7 @@ def login_to_linkedin(driver, linkedin_user, linkedin_password):
 
 
 def login_to_facebook(driver, facebook_user, facebook_password):
-    driver.get(PATH_TO_FACEBOOK)
+    driver.get(const.PATH_TO_FACEBOOK)
     driver.maximize_window()
     seconds_to_wait_for_page_to_load = 20
     seconds_to_wait_item_present = 10
@@ -232,7 +246,7 @@ def login_to_facebook(driver, facebook_user, facebook_password):
     try:
         wait = WebDriverWait(driver, seconds_to_wait_item_present)
         cookie_button = wait.until(EC.presence_of_element_located(
-            (By.XPATH, FACEBBOK_COOKIE_BANNER)
+            (By.XPATH, const.FACEBBOK_COOKIE_BANNER)
         ))
 
         actions = ActionChains(driver)
@@ -258,7 +272,7 @@ def login_to_facebook(driver, facebook_user, facebook_password):
     try:
         wait = WebDriverWait(driver, seconds_to_wait_item_present)
         cookie_button = wait.until(EC.presence_of_element_located(
-            (By.XPATH, FACEBBOK_COOKIE_BANNER)
+            (By.XPATH, const.FACEBBOK_COOKIE_BANNER)
         ))
         actions = ActionChains(driver)
         actions.move_to_element(cookie_button).click().perform()
@@ -281,13 +295,13 @@ def capture_full_page_screenshot_with_custom_width(output_path, width_of_screens
     match type_of_web_extraction.lower():
         case "gislaved.se":
             try:
-                driver.find_element(By.XPATH, GISLAVED_SE_COOKIE_BUTTON).click()
+                driver.find_element(By.XPATH, const.GISLAVED_SE_COOKIE_BUTTON).click()
             except Exception as e:
                 print(f"Error click button cookies: {e}")
         case "Linkedin":
             try:
                 dismiss_button = WebDriverWait(driver, seconds_to_wait_item_present).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, LINKEDIN_REJECT_BUTTON))
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, const.LINKEDIN_REJECT_BUTTON))
                 )
                 dismiss_button.click()
 
@@ -295,7 +309,7 @@ def capture_full_page_screenshot_with_custom_width(output_path, width_of_screens
                 print(f"Error: {e}")
         case "instagram":
             try:
-                element = driver.find_element(By.XPATH, INSTAGRAM_LOGIN_BANNER)
+                element = driver.find_element(By.XPATH, const.INSTAGRAM_LOGIN_BANNER)
                 actions = ActionChains(driver)
                 actions.move_to_element(element).click().perform()
             except Exception as e:
@@ -306,27 +320,6 @@ def capture_full_page_screenshot_with_custom_width(output_path, width_of_screens
     driver.set_window_size(width_of_screenshot, page_height)
     driver.save_screenshot(output_path)
     print(f"Saved screenshot to {output_path}")
-
-
-def convert_png_to_tiff(input_path_png, output_path_tiff):
-    image = Image.open(input_path_png)
-    image.save(output_path_tiff, format='TIFF')
-
-
-def replace_unwanted_chars(filename, replacement):
-    return re.sub('[^a-zA-Z]', replacement, filename)  
-
-
-def get_part_of_string(input_string, split_by, part):
-    return input_string.split(split_by)[part]
-
-
-def create_file_name(url):
-    filename_first_50_chars_in_url = str(url)[:50]
-    second_part_of_filename = get_part_of_string(filename_first_50_chars_in_url, "//", 1)
-    cleaned_filename = replace_unwanted_chars(second_part_of_filename, "_")
-    unique_filename_date_time = cleaned_filename + "_" + datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-    return unique_filename_date_time
 
 
 def create_tiff_screenshot(url, folder_name, width_of_screenshot, driver, type_of_web_extraction):
@@ -358,7 +351,8 @@ def create_package_creator_config(basmetadata, folder_name, schema, contract, sy
                    ("Leverans", "Gislaved-webb-1"),
                    ("Arkivbildare", arkivbildare_cleaned),
                    ("Systemnamn", systemnamn_cleaned),
-                   ("Schema", schema), ("Contract", contract)]
+                   ("Schema", schema),
+                   ("Contract", contract)]
 
     package_creator_workbook = Workbook()
     package_creator_active_sheet = package_creator_workbook.active
@@ -391,7 +385,7 @@ def main():
 
     width_of_screenshot = 1920
     headless_for_full_height = True  # Adjust this to true to get full height. False för debugging to see how buttons are clicked
-    xsd_file = "FREDA-GS-Webbsidor-v1_0.xsd"  # XSD file for validation of FGS. Change to your own XSD.
+    xsd_file = "FREDA-GS-Webbsidor-v1_0.xsd"  # XSD file for validation of FGS. Change to your own XSD if nedded
     contract = "Contract_2020-02-24-13-03-23-WEB.xml"  # contract file for LTA upload
     systemnamn = "Webbsidor"  # If you want package creator systemnamn to be the basmetadata "Ursprung" instead set this to empty string ("")
 
@@ -425,10 +419,7 @@ def main():
     pages_as_lists = pd.read_excel(pages_to_crawl_file, sheet_name=0).fillna("").values.tolist()
 
     basmetadata = pd.read_excel(basmetadata_file, sheet_name=0, index_col=0)
-    basmetadata.columns = basmetadata.columns.str.strip()
-    basmetadata.index = basmetadata.index.str.strip()
-    basmetadata.columns = basmetadata.columns.str.lower()
-    basmetadata.index = basmetadata.index.str.lower()
+    basmetadata = prepare_and_clean_basmetadata(basmetadata)
 
     today = datetime.now()
     formatted_date = today.strftime('%Y-%m-%d')
@@ -437,8 +428,8 @@ def main():
     folder_name = "files for package creator " + formatted_date_time
     os.mkdir(folder_name)
 
-    if not os.path.isdir(PATH_TO_IMAGE_TEMP):
-        os.mkdir(PATH_TO_IMAGE_TEMP)
+    if not os.path.isdir(const.PATH_TO_IMAGE_TEMP):
+        os.mkdir(const.PATH_TO_IMAGE_TEMP)
 
     options = Options()
     options.add_argument(f"--window-size={width_of_screenshot},1080")
@@ -467,8 +458,7 @@ def main():
             tiff_image_name = create_tiff_screenshot(url, folder_name, width_of_screenshot, driver, type_of_web_extraction)
             print(f"converted to tif {tiff_image_name}")
 
-            name_splitted = tiff_image_name.split(".")
-            xml_file_name = name_splitted[0] + ".xml"
+            xml_file_name = get_part_of_string(tiff_image_name, ".", 0) + ".xml"
             create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basmetadata, driver)
 
             print(xml_file_name)
