@@ -298,7 +298,7 @@ def capture_full_page_screenshot_with_custom_width(output_path, width_of_screens
                 driver.find_element(By.XPATH, const.GISLAVED_SE_COOKIE_BUTTON).click()
             except Exception as e:
                 print(f"Error click button cookies: {e}")
-        case "Linkedin":
+        case "linkedin":
             try:
                 dismiss_button = WebDriverWait(driver, seconds_to_wait_item_present).until(
                     EC.element_to_be_clickable((By.CSS_SELECTOR, const.LINKEDIN_REJECT_BUTTON))
@@ -385,7 +385,7 @@ def main():
 
     width_of_screenshot = 1920
     headless_for_full_height = True  # Adjust this to true to get full height. False för debugging to see how buttons are clicked
-    xsd_file = "FREDA-GS-Webbsidor-v1_0.xsd"  # XSD file for validation of FGS. Change to your own XSD if nedded
+    xsd_file = "FREDA-GS-Webbsidor-v1_0.xsd"  # XSD file for validation of FGS. Change to your own XSD.
     contract = "Contract_2020-02-24-13-03-23-WEB.xml"  # contract file for LTA upload
     systemnamn = "Webbsidor"  # If you want package creator systemnamn to be the basmetadata "Ursprung" instead set this to empty string ("")
 
@@ -416,60 +416,78 @@ def main():
 
     # End config section #############################################################
 
-    pages_as_lists = pd.read_excel(pages_to_crawl_file, sheet_name=0).fillna("").values.tolist()
+    print("Welcome to Mediahanteraren")
 
-    basmetadata = pd.read_excel(basmetadata_file, sheet_name=0, index_col=0)
-    basmetadata = prepare_and_clean_basmetadata(basmetadata)
+    while True:
+        print("************************************")
+        print("Type 'Exit' to quit at any time.")
+        print("Write 'Run' to run the program")
+        print("Write 1 to toogle Headless setting")
+        print("************************************")
+        user_input = input("Enter a chooise:")
 
-    today = datetime.now()
-    formatted_date = today.strftime('%Y-%m-%d')
-    formatted_date_time = today.strftime('%Y-%m-%d-%H-%M-%S')
+        match user_input.lower():
+            case "1":
+                headless_for_full_height = not headless_for_full_height
+                print(f"Headless = {headless_for_full_height}")
+            case "exit":
+                print("Goodbye!")
+                break
+            case "run":
+                pages_as_lists = pd.read_excel(pages_to_crawl_file, sheet_name=0).fillna("").values.tolist()
 
-    folder_name = "files for package creator " + formatted_date_time
-    os.mkdir(folder_name)
+                basmetadata = pd.read_excel(basmetadata_file, sheet_name=0, index_col=0)
+                basmetadata = prepare_and_clean_basmetadata(basmetadata)
 
-    if not os.path.isdir(const.PATH_TO_IMAGE_TEMP):
-        os.mkdir(const.PATH_TO_IMAGE_TEMP)
+                today = datetime.now()
+                formatted_date = today.strftime('%Y-%m-%d')
+                formatted_date_time = today.strftime('%Y-%m-%d-%H-%M-%S')
 
-    options = Options()
-    options.add_argument(f"--window-size={width_of_screenshot},1080")
-    options.add_argument("--disable-gpu")  # Disable GPU acceleration for stability
-    options.add_argument("--no-sandbox")   # Required for some environments like Docker
-    
-    if headless_for_full_height:
-        options.add_argument("--headless")
+                folder_name = "files for package creator " + formatted_date_time
+                os.mkdir(folder_name)
 
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-    driver.maximize_window()
+                if not os.path.isdir(const.PATH_TO_IMAGE_TEMP):
+                    os.mkdir(const.PATH_TO_IMAGE_TEMP)
 
-    match type_of_web_extraction.lower():
-        case "facebook":
-            login_to_facebook(driver, facebook_user, facebook_password)
-        case "linkedin":
-            login_to_linkedin(driver, linkedin_user, linkedin_password)
-        case "instagram":
-            login_to_instagram(driver, instagram_user, instagram_password)
+                options = Options()
+                options.add_argument(f"--window-size={width_of_screenshot},1080")
+                options.add_argument("--disable-gpu")  # Disable GPU acceleration for stability
+                options.add_argument("--no-sandbox")   # Required for some environments like Docker
 
-    xml_valid = True
-    for url_and_metadata_for_website in pages_as_lists:
-        if xml_valid:
-            url = url_and_metadata_for_website[0]
-            driver.get(url)
-            tiff_image_name = create_tiff_screenshot(url, folder_name, width_of_screenshot, driver, type_of_web_extraction)
-            print(f"converted to tif {tiff_image_name}")
+                if headless_for_full_height:
+                    options.add_argument("--headless")
 
-            xml_file_name = get_part_of_string(tiff_image_name, ".", 0) + ".xml"
-            create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basmetadata, driver)
+                driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+                driver.maximize_window()
 
-            print(xml_file_name)
-            xml_file_path = folder_name + "/" + xml_file_name
-            xml_valid = validate_xml(xml_file_path, xsd_file)
+                match type_of_web_extraction.lower():
+                    case "facebook":
+                        login_to_facebook(driver, facebook_user, facebook_password)
+                    case "linkedin":
+                        login_to_linkedin(driver, linkedin_user, linkedin_password)
+                    case "instagram":
+                        login_to_instagram(driver, instagram_user, instagram_password)
 
-        else:
-            print(f"xml not valid {xml_file_path}")
+                xml_valid = True
+                for url_and_metadata_for_website in pages_as_lists:
+                    if xml_valid:
+                        url = url_and_metadata_for_website[0]
+                        driver.get(url)
+                        tiff_image_name = create_tiff_screenshot(url, folder_name, width_of_screenshot, driver, type_of_web_extraction)
+                        print(f"converted to tif {tiff_image_name}")
 
-    driver.quit()
-    create_package_creator_config(basmetadata, folder_name, xsd_file, contract, systemnamn)
+                        xml_file_name = get_part_of_string(tiff_image_name, ".", 0) + ".xml"
+                        create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basmetadata, driver)
+
+                        print(xml_file_name)
+                        xml_file_path = folder_name + "/" + xml_file_name
+                        xml_valid = validate_xml(xml_file_path, xsd_file)
+
+                    else:
+                        print(f"xml not valid {xml_file_path}")
+
+                driver.quit()
+                create_package_creator_config(basmetadata, folder_name, xsd_file, contract, systemnamn)
 
 
 if __name__ == "__main__":
