@@ -41,6 +41,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
 from dotenv import load_dotenv
 import constants as const
+load_dotenv()
 
 
 def convert_png_to_tiff(input_path_png, output_path_tiff):
@@ -82,12 +83,12 @@ def get_domain_from_url(url):
     return urlparse(url).netloc
 
 
-def prepare_and_clean_basmetadata(basmetadata):
-    basmetadata.columns = basmetadata.columns.str.strip()
-    basmetadata.index = basmetadata.index.str.strip()
-    basmetadata.columns = basmetadata.columns.str.lower()
-    basmetadata.index = basmetadata.index.str.lower()
-    return basmetadata
+def prepare_and_clean_columns_and_index(data):
+    data.columns = data.columns.str.strip()
+    data.index = data.index.str.strip()
+    data.columns = data.columns.str.lower()
+    data.index = data.index.str.lower()
+    return data
 
 
 def get_webpage_metadata(url, driver):
@@ -178,7 +179,9 @@ def validate_xml(xml_file, xsd_file):
     return False
 
 
-def login_to_instagram(driver, instagram_user, instagram_password):
+def login_to_instagram(driver):
+    instagram_user = os.getenv("instagram_user")
+    instagram_password = os.getenv("instagram_password")
     driver.get(const.PATH_TO_INSTAGRAM)
     seconds_to_wait_for_page_to_load = 10
     driver.implicitly_wait(seconds_to_wait_for_page_to_load)
@@ -199,8 +202,9 @@ def login_to_instagram(driver, instagram_user, instagram_password):
     driver.find_element(By.XPATH, const.INSTAGRAM_LOGIN_BUTTON).click()
 
 
-def login_to_linkedin(driver, linkedin_user, linkedin_password):
-
+def login_to_linkedin(driver):
+    linkedin_user = os.getenv("linkedin_user")
+    linkedin_password = os.getenv("linkedin_password")
     driver.get(const.PATH_TO_LINKEDIN)
     seconds_to_wait_for_page_to_load = 10
     seconds_to_wait_item_present = 10
@@ -236,7 +240,9 @@ def login_to_linkedin(driver, linkedin_user, linkedin_password):
         print(f"Error: {e}")
 
 
-def login_to_facebook(driver, facebook_user, facebook_password):
+def login_to_facebook(driver):
+    facebook_user = os.getenv("facebook_user")
+    facebook_password = os.getenv("facebook_password")
     driver.get(const.PATH_TO_FACEBOOK)
     driver.maximize_window()
     seconds_to_wait_for_page_to_load = 20
@@ -363,20 +369,76 @@ def create_package_creator_config(basmetadata, folder_name, schema, contract, sy
     package_creator_workbook.save(config_file_path)
 
 
-def main():
+def run_web_extraction(pages_to_crawl_file, basmetadata_file, width_of_screenshot, headless_for_full_height, type_of_web_extraction, xsd_file, contract, systemnamn):
+    pages_as_lists = pd.read_excel(pages_to_crawl_file, sheet_name=0).fillna("").values.tolist()
 
+    basmetadata = pd.read_excel(basmetadata_file, sheet_name=0, index_col=0)
+    basmetadata = prepare_and_clean_columns_and_index(basmetadata)
+
+    today = datetime.now()
+    formatted_date = today.strftime('%Y-%m-%d')
+    formatted_date_time = today.strftime('%Y-%m-%d-%H-%M-%S')
+
+    folder_name = "files for package creator " + formatted_date_time
+    os.mkdir(folder_name)
+
+    if not os.path.isdir(const.PATH_TO_IMAGE_TEMP):
+        os.mkdir(const.PATH_TO_IMAGE_TEMP)
+
+    options = Options()
+    options.add_argument(f"--window-size={width_of_screenshot},1080")
+    options.add_argument("--disable-gpu")  # Disable GPU acceleration for stability
+    options.add_argument("--no-sandbox")   # Required for some environments like Docker
+
+    if headless_for_full_height:
+        options.add_argument("--headless")
+
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    driver.maximize_window()
+
+    match type_of_web_extraction.lower():
+        case "facebook":
+            login_to_facebook(driver)
+        case "linkedin":
+            login_to_linkedin(driver)
+        case "instagram":
+            login_to_instagram(driver)
+
+    xml_valid = True
+    for url_and_metadata_for_website in pages_as_lists:
+        if xml_valid:
+            url = url_and_metadata_for_website[0]
+            driver.get(url)
+            tiff_image_name = create_tiff_screenshot(url, folder_name, width_of_screenshot, driver, type_of_web_extraction)
+            print(f"converted to tif {tiff_image_name}")
+
+            xml_file_name = get_part_of_string(tiff_image_name, ".", 0) + ".xml"
+            create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basmetadata, driver)
+
+            print(xml_file_name)
+            xml_file_path = folder_name + "/" + xml_file_name
+            xml_valid = validate_xml(xml_file_path, xsd_file)
+
+        else:
+            print(f"xml not valid {xml_file_path}")
+
+    driver.quit()
+    create_package_creator_config(basmetadata, folder_name, xsd_file, contract, systemnamn)
+
+
+if __name__ == "__main__":
     # Config section ###################################################################
 
     # Create a .env file and put your social media usernamnes and password there.
-    load_dotenv()
-    instagram_user = os.getenv("instagram_user")
-    instagram_password = os.getenv("instagram_password")
-    linkedin_user = os.getenv("linkedin_user")
-    linkedin_password = os.getenv("linkedin_password")
-    facebook_user = os.getenv("facebook_user")
-    facebook_password = os.getenv("facebook_password")
+    # load_dotenv()
+    # instagram_user = os.getenv("instagram_user")
+    # instagram_password = os.getenv("instagram_password")
+    # linkedin_user = os.getenv("linkedin_user")
+    # linkedin_password = os.getenv("linkedin_password")
+    # facebook_user = os.getenv("facebook_user")
+    # facebook_password = os.getenv("facebook_password")
 
-    type_of_web_extraction = "gislaved.se"
+    # type_of_web_extraction = "gislaved.se"
     # gislaved.se
     # insidan.gislaved.se
     # Facebook
@@ -421,8 +483,8 @@ def main():
     while True:
         print("************************************")
         print("Type 'Exit' to quit at any time.")
-        print("Write 'Run' to run the program")
-        print("Write 1 to toogle Headless setting")
+        print("Type 'Run' to run the program")
+        print("Type 1 to toogle Headless setting")
         print("************************************")
         user_input = input("Enter a chooise:")
 
@@ -434,61 +496,29 @@ def main():
                 print("Goodbye!")
                 break
             case "run":
-                pages_as_lists = pd.read_excel(pages_to_crawl_file, sheet_name=0).fillna("").values.tolist()
-
-                basmetadata = pd.read_excel(basmetadata_file, sheet_name=0, index_col=0)
-                basmetadata = prepare_and_clean_basmetadata(basmetadata)
-
-                today = datetime.now()
-                formatted_date = today.strftime('%Y-%m-%d')
-                formatted_date_time = today.strftime('%Y-%m-%d-%H-%M-%S')
-
-                folder_name = "files for package creator " + formatted_date_time
-                os.mkdir(folder_name)
-
-                if not os.path.isdir(const.PATH_TO_IMAGE_TEMP):
-                    os.mkdir(const.PATH_TO_IMAGE_TEMP)
-
-                options = Options()
-                options.add_argument(f"--window-size={width_of_screenshot},1080")
-                options.add_argument("--disable-gpu")  # Disable GPU acceleration for stability
-                options.add_argument("--no-sandbox")   # Required for some environments like Docker
-
-                if headless_for_full_height:
-                    options.add_argument("--headless")
-
-                driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-                driver.maximize_window()
-
-                match type_of_web_extraction.lower():
-                    case "facebook":
-                        login_to_facebook(driver, facebook_user, facebook_password)
-                    case "linkedin":
-                        login_to_linkedin(driver, linkedin_user, linkedin_password)
-                    case "instagram":
-                        login_to_instagram(driver, instagram_user, instagram_password)
-
-                xml_valid = True
-                for url_and_metadata_for_website in pages_as_lists:
-                    if xml_valid:
-                        url = url_and_metadata_for_website[0]
-                        driver.get(url)
-                        tiff_image_name = create_tiff_screenshot(url, folder_name, width_of_screenshot, driver, type_of_web_extraction)
-                        print(f"converted to tif {tiff_image_name}")
-
-                        xml_file_name = get_part_of_string(tiff_image_name, ".", 0) + ".xml"
-                        create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basmetadata, driver)
-
-                        print(xml_file_name)
-                        xml_file_path = folder_name + "/" + xml_file_name
-                        xml_valid = validate_xml(xml_file_path, xsd_file)
-
-                    else:
-                        print(f"xml not valid {xml_file_path}")
-
-                driver.quit()
-                create_package_creator_config(basmetadata, folder_name, xsd_file, contract, systemnamn)
+                print("************************************")
+                print("Type 1 for gislaved.se")
+                print("Type 2 for insidan.gislaved.se")
+                print("Type 3 for Facebook")
+                print("Type 4 for LinkedIn")
+                print("Type 5 for Instagram")
+                print("************************************")
+                type_of_web_extraction_input = input("What typ of webextraction do you want run?")
+                match type_of_web_extraction_input:
+                    case "1":
+                        type_of_web_extraction = "gislaved.se"
+                    case "2":
+                        type_of_web_extraction = "insidan.gislaved.se"
+                    case _:
+                        type_of_web_extraction = "Not a correct chooise"
+                
+                if type_of_web_extraction != "Not a correct chooise":
+                    print(f"Your current pages to crawl file is: {pages_to_crawl_file}")
+                    answer_pages_to_crawl = input("do you want to change it y/n?")
+                    if answer_pages_to_crawl == "y":
+                        pages_to_crawl_file = input("Enter your new file?")
+                    run_web_extraction(pages_to_crawl_file, basmetadata_file, width_of_screenshot, headless_for_full_height, type_of_web_extraction, xsd_file, contract, systemnamn)
+                else:
+                    print("You did not choose a correct webextraction type")
 
 
-if __name__ == "__main__":
-    main()
