@@ -41,6 +41,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
 from dotenv import load_dotenv
 import constants as const
+import config as conf
 load_dotenv()
 
 
@@ -180,8 +181,8 @@ def validate_xml(xml_file, xsd_file):
 
 
 def login_to_instagram(driver):
-    instagram_user = os.getenv("instagram_user")
-    instagram_password = os.getenv("instagram_password")
+    username = os.getenv("instagram_user")
+    password = os.getenv("instagram_password")
     driver.get(const.PATH_TO_INSTAGRAM)
     seconds_to_wait_for_page_to_load = 10
     driver.implicitly_wait(seconds_to_wait_for_page_to_load)
@@ -193,18 +194,18 @@ def login_to_instagram(driver):
 
     input_field = driver.find_element(By.NAME, "username")
     input_field.clear()
-    input_field.send_keys(instagram_user)
+    input_field.send_keys(username)
 
     password_field = driver.find_element(By.NAME, "password")
     password_field.clear()
-    password_field.send_keys(instagram_password)
+    password_field.send_keys(password)
 
     driver.find_element(By.XPATH, const.INSTAGRAM_LOGIN_BUTTON).click()
 
 
 def login_to_linkedin(driver):
-    linkedin_user = os.getenv("linkedin_user")
-    linkedin_password = os.getenv("linkedin_password")
+    username = os.getenv("linkedin_user")
+    password = os.getenv("linkedin_password")
     driver.get(const.PATH_TO_LINKEDIN)
     seconds_to_wait_for_page_to_load = 10
     seconds_to_wait_item_present = 10
@@ -220,11 +221,11 @@ def login_to_linkedin(driver):
 
     input_field = driver.find_element(By.ID, "username")
     input_field.clear()
-    input_field.send_keys(linkedin_user)
+    input_field.send_keys(username)
 
     password_field = driver.find_element(By.ID, "password")
     password_field.clear()
-    password_field.send_keys(linkedin_password)
+    password_field.send_keys(password)
 
     login_button = WebDriverWait(driver, seconds_to_wait_item_present).until(
         EC.element_to_be_clickable((By.XPATH, const.LINKEDIN_LOGIN_BUTTON))
@@ -241,8 +242,8 @@ def login_to_linkedin(driver):
 
 
 def login_to_facebook(driver):
-    facebook_user = os.getenv("facebook_user")
-    facebook_password = os.getenv("facebook_password")
+    username = os.getenv("facebook_user")
+    password = os.getenv("facebook_password")
     driver.get(const.PATH_TO_FACEBOOK)
     driver.maximize_window()
     seconds_to_wait_for_page_to_load = 20
@@ -265,10 +266,10 @@ def login_to_facebook(driver):
     try:
         email_input = driver.find_element(By.ID, "email")
         email_input.clear()
-        email_input.send_keys(facebook_user)
+        email_input.send_keys(username)
 
         password_input = driver.find_element(By.ID, "pass")
-        password_input.send_keys(facebook_password)
+        password_input.send_keys(password)
 
         password_input.send_keys(Keys.RETURN)
 
@@ -427,75 +428,64 @@ def run_web_extraction(pages_to_crawl_file, basmetadata_file, width_of_screensho
 
 
 if __name__ == "__main__":
+
     # Config section ###################################################################
-
-    # Create a .env file and put your social media usernamnes and password there.
-    # load_dotenv()
-    # instagram_user = os.getenv("instagram_user")
-    # instagram_password = os.getenv("instagram_password")
-    # linkedin_user = os.getenv("linkedin_user")
-    # linkedin_password = os.getenv("linkedin_password")
-    # facebook_user = os.getenv("facebook_user")
-    # facebook_password = os.getenv("facebook_password")
-
-    # type_of_web_extraction = "gislaved.se"
-    # gislaved.se
-    # insidan.gislaved.se
-    # Facebook
-    # LinkedIn
-    # Instagram
-
-    width_of_screenshot = 1920
-    headless_for_full_height = True  # Adjust this to true to get full height. False för debugging to see how buttons are clicked
-    xsd_file = "FREDA-GS-Webbsidor-v1_0.xsd"  # XSD file for validation of FGS. Change to your own XSD.
-    contract = "Contract_2020-02-24-13-03-23-WEB.xml"  # contract file for LTA upload
-    systemnamn = "Webbsidor"  # If you want package creator systemnamn to be the basmetadata "Ursprung" instead set this to empty string ("")
-
-    # Load the Excel file with a list of web pages for the current run
-    pages_to_crawl_file = 'pages_gislaved_se_extern_webb.xlsx'
-    # The following is the the two columns of the pages excel.
-    # Webbadress	Webbsida
-    # The first is the url to be crawled
-    # The second is a short description of the url that goes in the FGS node webbsida
-
-    basmetadata_file = 'basmetadata_extern_webb.xlsx'
-    # The following is the first column of the excel with basmetadata. The second column is for the values
-    # Basmetadata
-    # Organisation
-    # Arkivbildare
-    # Arkivbildarenhet
-    # Arkiv
-    # Serie
-    # Klassificeringsstruktur
-    # nivå1
-    # nivå2
-    # nivå3
-    # Ursprung
-    # Sekretess
-    # Personuppgifter
-    # Forskningsdata
-    # Kommentar
-
+    # 1. Create a .env file and put your social media usernamnes and password there.
+    # 2. If you want change the default config values you find them in the file config.py
+    headless_for_full_height = conf.headless_for_full_height
+    xsd_file = conf.xsd_file
+    contract = conf.contract
+    systemnamn = conf.systemnamn
+    pages_to_crawl_file = conf.pages_to_crawl_file
+    basmetadata_file = conf.basmetadata_file
     # End config section #############################################################
 
     print("Welcome to Mediahanteraren")
 
     while True:
         print("************************************")
-        print("Type 'Exit' to quit at any time.")
-        print("Type 'Run' to run the program")
+        print("Type 'Q' to quit at any time.")
+        print("Type 'R' to run the program")
         print("Type 1 to toogle Headless setting")
+        print("Type 2 to change XSD-file")
+        print("Type 3 to change Contract-file")
+        print("Type 4 to change Systemnamn")
         print("************************************")
-        user_input = input("Enter a chooise:")
+        user_input = input("Enter a choise: ")
 
         match user_input.lower():
             case "1":
                 headless_for_full_height = not headless_for_full_height
                 print(f"Headless = {headless_for_full_height}")
-            case "exit":
+            case "2":
+                print(f"Your current XSD-file is:  {xsd_file}")
+                xsd_file = input("Enter your new XSD-file? ")
+            case "3":
+                print(f"Your current Contract-file is:  {contract}")
+                contract = input("Enter your new Contract-file? ")
+            case "4":
+                if systemnamn == "":
+                    print("Systemnamn is cleared and Basmetadata URSRPUNG is choosen")    
+                else:
+                    print(f"Your current Systemnamn is:  {systemnamn}")
+                print("************************************")
+                print('type 1 to change Systemnamn')
+                print('type 2 to or clear it to choose the basmetadata "URSPRUNG" instead')
+                print('type Q to exit this menu')
+                print("************************************")
+                answer_systemnamn_choise = input("Type 1 or 2 ? ")
+                match answer_systemnamn_choise.lower():
+                    case "1":
+                        systemnamn = input("Enter your new Systemnamn ")
+                    case "2": 
+                        systemnamn = ""
+                        print('Systemnamn is cleared and Basmetadata URSPRUNG is choosen instead')
+                    case _:
+                        print('Exited menu')
+            case "q":
                 print("Goodbye!")
                 break
-            case "run":
+            case "r":
                 print("************************************")
                 print("Type 1 for gislaved.se")
                 print("Type 2 for insidan.gislaved.se")
@@ -503,21 +493,26 @@ if __name__ == "__main__":
                 print("Type 4 for LinkedIn")
                 print("Type 5 for Instagram")
                 print("************************************")
-                type_of_web_extraction_input = input("What typ of webextraction do you want run?")
+                type_of_web_extraction_input = input("What type of webextraction do you want run?")
                 match type_of_web_extraction_input:
                     case "1":
                         type_of_web_extraction = "gislaved.se"
                     case "2":
                         type_of_web_extraction = "insidan.gislaved.se"
                     case _:
-                        type_of_web_extraction = "Not a correct chooise"
+                        type_of_web_extraction = "Not a correct choise"
                 
-                if type_of_web_extraction != "Not a correct chooise":
+                if type_of_web_extraction != "Not a correct choise":
                     print(f"Your current pages to crawl file is: {pages_to_crawl_file}")
                     answer_pages_to_crawl = input("do you want to change it y/n?")
                     if answer_pages_to_crawl == "y":
                         pages_to_crawl_file = input("Enter your new file?")
-                    run_web_extraction(pages_to_crawl_file, basmetadata_file, width_of_screenshot, headless_for_full_height, type_of_web_extraction, xsd_file, contract, systemnamn)
+
+                    print(f"Your current basmetadata file is: {basmetadata_file}")
+                    answer_basmetadata = input("do you want to change it y/n?")
+                    if answer_basmetadata == "y":
+                        basmetadata_file = input("Enter your new file?")
+                    run_web_extraction(pages_to_crawl_file, basmetadata_file, const.WIDTH_Of_SCREENSHOT, headless_for_full_height, type_of_web_extraction, xsd_file, contract, systemnamn)
                 else:
                     print("You did not choose a correct webextraction type")
 
