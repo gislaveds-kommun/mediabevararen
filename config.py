@@ -1,6 +1,6 @@
 headless_for_full_height = True
 xsd_file = "FREDA-GS-Webbsidor-v1_0.xsd"  # XSD file for validation of FGS.
-contract = "your_contract.xml"  # contract file for LTA upload
+contract = ""  # contract file for LTA upload
 systemnamn = ""  # If you want package creator systemnamn to be the basmetadata "Ursprung" instead set this to empty string ("")
 
 pages_to_crawl_file = 'default_sample_pages.xlsx'

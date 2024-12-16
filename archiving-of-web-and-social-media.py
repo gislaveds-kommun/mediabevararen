@@ -461,7 +461,8 @@ if __name__ == "__main__":
                 print(f"Your current XSD-file is:  {xsd_file}")
                 xsd_file = input("Enter your new XSD-file? ")
             case "3":
-                print(f"Your current Contract-file is:  {contract}")
+                if contract != "":
+                    print(f"Your current Contract-file is:  {contract}")
                 contract = input("Enter your new Contract-file? ")
             case "4":
                 if systemnamn == "":
