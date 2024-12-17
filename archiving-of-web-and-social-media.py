@@ -515,8 +515,9 @@ if __name__ == "__main__":
                         basmetadata_file = input("Enter your new file: ")
                     print("Running the webextraction ....")    
                     run_web_extraction(pages_to_crawl_file, basmetadata_file, const.WIDTH_Of_SCREENSHOT, headless_for_full_height, type_of_web_extraction, xsd_file, contract, systemnamn)
+                    print("Webextraction completed!")    
                 else:
                     print("You did not choose a correct webextraction type")
-                print("Webextraction completed!")    
+                
 
 
