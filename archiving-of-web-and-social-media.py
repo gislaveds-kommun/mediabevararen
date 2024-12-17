@@ -431,7 +431,7 @@ if __name__ == "__main__":
 
     # Config section ###################################################################
     # 1. Create a .env file and put your social media usernamnes and password there.
-    # 2. If you want change the default config values you find them in the file config.py
+    # 2. If you want to change the default config values you will find them in the file config.py
     headless_for_full_height = conf.headless_for_full_height
     xsd_file = conf.xsd_file
     contract = conf.contract
@@ -459,11 +459,11 @@ if __name__ == "__main__":
                 print(f"Headless = {headless_for_full_height}")
             case "2":
                 print(f"Your current XSD-file is:  {xsd_file}")
-                xsd_file = input("Enter your new XSD-file? ")
+                xsd_file = input("Enter your new XSD-file: ")
             case "3":
                 if contract != "":
                     print(f"Your current Contract-file is:  {contract}")
-                contract = input("Enter your new Contract-file? ")
+                contract = input("Enter your new Contract-file: ")
             case "4":
                 if systemnamn == "":
                     print("Systemnamn is cleared and Basmetadata URSRPUNG is choosen")    
@@ -471,18 +471,18 @@ if __name__ == "__main__":
                     print(f"Your current Systemnamn is:  {systemnamn}")
                 print("************************************")
                 print('type 1 to change Systemnamn')
-                print('type 2 to or clear it to choose the basmetadata "URSPRUNG" instead')
+                print('type 2 to clear it to choose the basmetadata "URSPRUNG" instead')
                 print('type Q to exit this menu')
                 print("************************************")
-                answer_systemnamn_choise = input("Type 1 or 2 ? ")
+                answer_systemnamn_choise = input("Enter a choice: ")
                 match answer_systemnamn_choise.lower():
                     case "1":
-                        systemnamn = input("Enter your new Systemnamn ")
+                        systemnamn = input("Enter your new Systemnamn: ")
                     case "2": 
                         systemnamn = ""
                         print('Systemnamn is cleared and Basmetadata URSPRUNG is choosen instead')
                     case _:
-                        print('Exited menu')
+                        print('Exited the menu')
             case "q":
                 print("Goodbye!")
                 break
@@ -494,7 +494,7 @@ if __name__ == "__main__":
                 print("Type 4 for LinkedIn")
                 print("Type 5 for Instagram")
                 print("************************************")
-                type_of_web_extraction_input = input("What type of webextraction do you want run?")
+                type_of_web_extraction_input = input("What type of webextraction do you want run? ")
                 match type_of_web_extraction_input:
                     case "1":
                         type_of_web_extraction = "gislaved.se"
@@ -505,16 +505,18 @@ if __name__ == "__main__":
                 
                 if type_of_web_extraction != "Not a correct choise":
                     print(f"Your current pages to crawl file is: {pages_to_crawl_file}")
-                    answer_pages_to_crawl = input("do you want to change it y/n?")
+                    answer_pages_to_crawl = input("Do you want to change it y/n? ")
                     if answer_pages_to_crawl == "y":
-                        pages_to_crawl_file = input("Enter your new file?")
+                        pages_to_crawl_file = input("Enter your new file: ")
 
                     print(f"Your current basmetadata file is: {basmetadata_file}")
-                    answer_basmetadata = input("do you want to change it y/n?")
+                    answer_basmetadata = input("Do you want to change it y/n? ")
                     if answer_basmetadata == "y":
-                        basmetadata_file = input("Enter your new file?")
+                        basmetadata_file = input("Enter your new file: ")
+                    print("Running the webextraction ....")    
                     run_web_extraction(pages_to_crawl_file, basmetadata_file, const.WIDTH_Of_SCREENSHOT, headless_for_full_height, type_of_web_extraction, xsd_file, contract, systemnamn)
                 else:
                     print("You did not choose a correct webextraction type")
+                print("Webextraction completed!")    
 
 
