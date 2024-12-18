@@ -28,6 +28,7 @@ import xml.dom.minidom
 from lxml import etree
 from datetime import datetime
 import os
+import sys
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
@@ -437,6 +438,7 @@ def case_four_systemnamn():
 
     print(systemnamn_message)
     print("************************************")
+    print("You can choose one of the following actions:")
     print('1: to change Systemnamn')
     print('2: to clear it to choose the basmetadata "URSPRUNG" instead')
     print('Type any other key to exit this menu')
@@ -540,11 +542,17 @@ def case_three_contract():
     conf.contract = input("Enter your new Contract-file: ")
 
 
+def exit_program():
+    print("Exited the program")
+    sys.exit()
+
+
 def start_program():
     print("Welcome to Mediahanteraren")
 
     while True:
         print("************************************")
+        print("You can choose one of the following actions:")
         print("'Exit' or ctrl+c to quit at any time.")
         print("'R' to run web extraction")
         print("1: to toogle Headless setting")
@@ -552,7 +560,7 @@ def start_program():
         print("3: to change Contract-file")
         print("4 to change Systemnamn")
         print("************************************")
-        user_input = input("Enter a choise: ")
+        user_input = input("Enter a choice: ")
 
         match user_input.lower():
             case "1":
@@ -564,8 +572,7 @@ def start_program():
             case "4":
                 case_four_systemnamn()
             case "exit":
-                print("Exited the program")
-                break
+                exit_program()
             case "r":
                 case_run()
             case _:
