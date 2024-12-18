@@ -39,6 +39,7 @@ from urllib.parse import urlparse
 from openpyxl import Workbook
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
+from pathlib import Path
 from dotenv import load_dotenv
 import constants as const
 import config as conf
@@ -427,25 +428,106 @@ def run_web_extraction(pages_to_crawl_file, basmetadata_file, width_of_screensho
     create_package_creator_config(basmetadata, folder_name, xsd_file, contract, systemnamn)
 
 
-if __name__ == "__main__":
+def case_four_systemnamn():
+    systemnamn_message = f"Your current Systemnamn is: {conf.systemnamn}"
+    empty_systemnamn = "Systemnamn is cleared and basmetadata URSRPUNG is chosen"
 
-    # Config section ###################################################################
-    # 1. Create a .env file and put your social media usernamnes and password there.
-    # 2. If you want to change the default config values you will find them in the file config.py
-    headless_for_full_height = conf.headless_for_full_height
-    xsd_file = conf.xsd_file
-    contract = conf.contract
-    systemnamn = conf.systemnamn
-    pages_to_crawl_file = conf.pages_to_crawl_file
-    basmetadata_file = conf.basmetadata_file
-    # End config section #############################################################
+    if not conf.systemnamn:
+        systemnamn_message = empty_systemnamn
 
+    print(systemnamn_message)
+    print("************************************")
+    print('Type 1 to change Systemnamn')
+    print('Type 2 to clear it to choose the basmetadata "URSPRUNG" instead')
+    print('Type any other key to exit this menu')
+    print("************************************")
+
+    answer_systemnamn_choice = input("Enter a choice: ")
+    match answer_systemnamn_choice.lower():
+        case "1":
+            conf.systemnamn = input("Enter your new Systemnamn: ")
+        case "2": 
+            conf.systemnamn = ""
+            print(empty_systemnamn)
+        case _:
+            print('Exited menu for systemnamn')
+
+
+def choose_new_file_input(file_type_name):
+    print(f"You are about to change which file to use as your {file_type_name.lower()}.")
+    print("Write the new path to your file or write 'quit' to go back without making any changes.")
+
+    while True:
+        file_name = input("Path to file: ")
+        match file_name:
+            case "quit":
+                print(f'{file_type_name} was not changed.')
+                return None
+            case _:
+                file_path = Path(file_name)
+                if file_path.is_file():
+                    print(f'{file_type_name} changed to {file_name}')
+                    return file_name
+
+                print(f'The path {file_name} is not valid, try again.')
+
+
+def get_web_extraction_choice():
+    print("************************************")
+    print("The choices of web extraction are:")
+    print("1: gislaved.se")
+    print("2: insidan.gislaved.se")
+    print("3: Facebook")
+    print("4: LinkedIn")
+    print("5: Instagram")
+    print("************************************")
+
+    while True:
+        user_input = input("What type of web extraction do you want to run? ")
+        match user_input:
+            case "1":
+                return "gislaved.se"
+            case "2":
+                return "insidan.gislaved.se"
+            case "3":
+                return "facebook"
+            case "4":
+                return "linkedin"
+            case "5":
+                return "instagram"
+            case _:
+                print("Not a correct choice. Please try again.")
+
+
+def case_run():
+    print("The program is running.")
+
+    type_of_web_extraction = get_web_extraction_choice()
+
+    print(f"Your current 'pages-to-crawl-file' is: {conf.pages_to_crawl_file}")
+    answer_change_pages_to_crawl = input("Do you want to change it y/n? ")
+    if answer_change_pages_to_crawl == "y":
+        new_pages_to_crawl = choose_new_file_input('Pages-to-crawl-file')
+        conf.pages_to_crawl_file = new_pages_to_crawl if new_pages_to_crawl else conf.pages_to_crawl_file
+
+    print(f"Your current basmetadata-file is: {conf.basmetadata_file}")
+    answer_change_basmetadata = input("Do you want to change it y/n? ")
+    if answer_change_basmetadata == "y":
+        new_basmetadata = choose_new_file_input('Basmetadata-file')
+        conf.basmetadata_file = new_basmetadata if new_basmetadata else conf.basmetadata_file
+
+    print("Running the web extraction ....")
+    run_web_extraction(conf.pages_to_crawl_file, conf.basmetadata_file, const.WIDTH_Of_SCREENSHOT, conf.headless_for_full_height, type_of_web_extraction, conf.xsd_file, conf.contract, conf.systemnamn)
+    print("Web extraction completed!")
+
+
+def start_program():
     print("Welcome to Mediahanteraren")
 
     while True:
         print("************************************")
-        print("Type 'Q' to quit at any time.")
-        print("Type 'R' to run the program")
+        print("Type 'Exit' or ctrl+c to quit at any time.")
+        print("Type 'R' to run web extraction")
         print("Type 1 to toogle Headless setting")
         print("Type 2 to change XSD-file")
         print("Type 3 to change Contract-file")
@@ -455,69 +537,31 @@ if __name__ == "__main__":
 
         match user_input.lower():
             case "1":
-                headless_for_full_height = not headless_for_full_height
-                print(f"Headless = {headless_for_full_height}")
+                conf.headless_for_full_height = not conf.headless_for_full_height
+                print(f"Headless = {conf.headless_for_full_height}")
             case "2":
-                print(f"Your current XSD-file is:  {xsd_file}")
-                xsd_file = input("Enter your new XSD-file: ")
+                print(f"Your current XSD-file is:  {conf.xsd_file}")
+                conf.xsd_file = input("Enter your new XSD-file: ")
             case "3":
-                if contract != "":
-                    print(f"Your current Contract-file is:  {contract}")
-                contract = input("Enter your new Contract-file: ")
+                if conf.contract != "":
+                    print(f"Your current Contract-file is:  {conf.contract}")
+                conf.contract = input("Enter your new Contract-file: ")
             case "4":
-                if systemnamn == "":
-                    print("Systemnamn is cleared and Basmetadata URSRPUNG is choosen")    
-                else:
-                    print(f"Your current Systemnamn is:  {systemnamn}")
-                print("************************************")
-                print('type 1 to change Systemnamn')
-                print('type 2 to clear it to choose the basmetadata "URSPRUNG" instead')
-                print('type Q to exit this menu')
-                print("************************************")
-                answer_systemnamn_choise = input("Enter a choice: ")
-                match answer_systemnamn_choise.lower():
-                    case "1":
-                        systemnamn = input("Enter your new Systemnamn: ")
-                    case "2": 
-                        systemnamn = ""
-                        print('Systemnamn is cleared and Basmetadata URSPRUNG is choosen instead')
-                    case _:
-                        print('Exited the menu')
-            case "q":
-                print("Goodbye!")
+                case_four_systemnamn()
+            case "exit":
+                print("Exited the program")
                 break
             case "r":
-                print("************************************")
-                print("Type 1 for gislaved.se")
-                print("Type 2 for insidan.gislaved.se")
-                print("Type 3 for Facebook")
-                print("Type 4 for LinkedIn")
-                print("Type 5 for Instagram")
-                print("************************************")
-                type_of_web_extraction_input = input("What type of webextraction do you want run? ")
-                match type_of_web_extraction_input:
-                    case "1":
-                        type_of_web_extraction = "gislaved.se"
-                    case "2":
-                        type_of_web_extraction = "insidan.gislaved.se"
-                    case _:
-                        type_of_web_extraction = "Not a correct choise"
-                
-                if type_of_web_extraction != "Not a correct choise":
-                    print(f"Your current pages to crawl file is: {pages_to_crawl_file}")
-                    answer_pages_to_crawl = input("Do you want to change it y/n? ")
-                    if answer_pages_to_crawl == "y":
-                        pages_to_crawl_file = input("Enter your new file: ")
-
-                    print(f"Your current basmetadata file is: {basmetadata_file}")
-                    answer_basmetadata = input("Do you want to change it y/n? ")
-                    if answer_basmetadata == "y":
-                        basmetadata_file = input("Enter your new file: ")
-                    print("Running the webextraction ....")    
-                    run_web_extraction(pages_to_crawl_file, basmetadata_file, const.WIDTH_Of_SCREENSHOT, headless_for_full_height, type_of_web_extraction, xsd_file, contract, systemnamn)
-                    print("Webextraction completed!")    
-                else:
-                    print("You did not choose a correct webextraction type")
-                
+                case_run()
 
 
+if __name__ == "__main__":
+
+    try:
+        start_program()
+    except KeyboardInterrupt:
+        print("Exited the program with cntl+c")
+    except Exception as e:
+        print(f"Exited with error: {e}")
+    finally:
+        print("Goodbye!")

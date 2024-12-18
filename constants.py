@@ -1,3 +1,4 @@
+WIDTH_Of_SCREENSHOT = "1920"
 PATH_TO_IMAGE_TEMP = "image_temp"
 NO_KEYWORDS_TEXT = "Inga Keywords specificerade för denna webbsida"
 NO_DESCRIPTION_TEXT = "Ingen beskrivning specificerad för denna webbsida"
