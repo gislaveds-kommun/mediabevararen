@@ -568,6 +568,8 @@ def start_program():
                 break
             case "r":
                 case_run()
+            case _:
+                print("Not a correct choice. Please try again.")
 
 
 if __name__ == "__main__":
