@@ -43,6 +43,7 @@ from selenium.webdriver.common.keys import Keys
 from pathlib import Path
 from dotenv import load_dotenv
 import constants as const
+from constants import IO_STRINGS as io
 import config as conf
 load_dotenv()
 
@@ -372,10 +373,10 @@ def create_package_creator_config(basmetadata, folder_name, schema, contract, sy
     package_creator_workbook.save(config_file_path)
 
 
-def run_web_extraction(pages_to_crawl_file, basmetadata_file, width_of_screenshot, headless_for_full_height, type_of_web_extraction, xsd_file, contract, systemnamn):
-    pages_as_lists = pd.read_excel(pages_to_crawl_file, sheet_name=0).fillna("").values.tolist()
+def run_web_extraction(type_of_web_extraction):
+    pages_as_lists = pd.read_excel(conf.pages_to_crawl_file, sheet_name=0).fillna("").values.tolist()
 
-    basmetadata = pd.read_excel(basmetadata_file, sheet_name=0, index_col=0)
+    basmetadata = pd.read_excel(conf.basmetadata_file, sheet_name=0, index_col=0)
     basmetadata = prepare_and_clean_columns_and_index(basmetadata)
 
     today = datetime.now()
@@ -389,11 +390,11 @@ def run_web_extraction(pages_to_crawl_file, basmetadata_file, width_of_screensho
         os.mkdir(const.PATH_TO_IMAGE_TEMP)
 
     options = Options()
-    options.add_argument(f"--window-size={width_of_screenshot},1080")
+    options.add_argument(f"--window-size={const.WIDTH_Of_SCREENSHOT},1080")
     options.add_argument("--disable-gpu")  # Disable GPU acceleration for stability
     options.add_argument("--no-sandbox")   # Required for some environments like Docker
 
-    if headless_for_full_height:
+    if conf.headless_for_full_height:
         options.add_argument("--headless")
 
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
@@ -412,7 +413,7 @@ def run_web_extraction(pages_to_crawl_file, basmetadata_file, width_of_screensho
         if xml_valid:
             url = url_and_metadata_for_website[0]
             driver.get(url)
-            tiff_image_name = create_tiff_screenshot(url, folder_name, width_of_screenshot, driver, type_of_web_extraction)
+            tiff_image_name = create_tiff_screenshot(url, folder_name, const.WIDTH_Of_SCREENSHOT, driver, type_of_web_extraction)
             print(f"converted to tif {tiff_image_name}")
 
             xml_file_name = get_part_of_string(tiff_image_name, ".", 0) + ".xml"
@@ -420,18 +421,18 @@ def run_web_extraction(pages_to_crawl_file, basmetadata_file, width_of_screensho
 
             print(xml_file_name)
             xml_file_path = folder_name + "/" + xml_file_name
-            xml_valid = validate_xml(xml_file_path, xsd_file)
+            xml_valid = validate_xml(xml_file_path, conf.xsd_file)
 
         else:
             print(f"xml not valid {xml_file_path}")
 
     driver.quit()
-    create_package_creator_config(basmetadata, folder_name, xsd_file, contract, systemnamn)
+    create_package_creator_config(basmetadata, folder_name, conf.xsd_file, conf.contract, conf.systemnamn)
 
 
 def case_four_systemnamn():
     systemnamn_message = f"Your current Systemnamn is: {conf.systemnamn}"
-    empty_systemnamn = "Systemnamn is cleared and basmetadata URSRPUNG is chosen"
+    empty_systemnamn = io['empty_systemnamn']
 
     if not conf.systemnamn:
         systemnamn_message = empty_systemnamn
@@ -444,15 +445,15 @@ def case_four_systemnamn():
     print('Type any other key to exit this menu')
     print("************************************")
 
-    answer_systemnamn_choice = input("Enter a choice: ")
+    answer_systemnamn_choice = input(io['question_choice'])
     match answer_systemnamn_choice.lower():
         case "1":
-            conf.systemnamn = input("Enter your new Systemnamn: ")
+            conf.systemnamn = input(io['question_systemnamn'])
         case "2": 
             conf.systemnamn = ""
             print(empty_systemnamn)
         case _:
-            print('Exited menu for systemnamn')
+            print(io['exit_systemnamn'])
 
 
 def choose_new_file_input(file_type_name):
@@ -460,17 +461,15 @@ def choose_new_file_input(file_type_name):
     print("Write the new path to your file or write 'quit' to go back without making any changes.")
 
     while True:
-        file_name = input("Path to file: ")
+        file_name = input(io['question_path'])
         match file_name:
             case "quit":
                 print(f'{file_type_name} was not changed.')
                 return None
+            case file_name if Path(file_name).is_file():
+                print(f'{file_type_name} changed to {file_name}')
+                return file_name
             case _:
-                file_path = Path(file_name)
-                if file_path.is_file():
-                    print(f'{file_type_name} changed to {file_name}')
-                    return file_name
-
                 print(f'The path {file_name} is not valid, try again.')
 
 
@@ -485,7 +484,7 @@ def get_web_extraction_choice():
     print("************************************")
 
     while True:
-        user_input = input("What type of web extraction do you want to run? ")
+        user_input = input(io['question_web_extraction'])
         match user_input:
             case "1":
                 return "gislaved.se"
@@ -498,40 +497,40 @@ def get_web_extraction_choice():
             case "5":
                 return "instagram"
             case _:
-                print("Not a correct choice. Please try again.")
+                print(io['invalid_choice'])
 
 
 def case_run():
-    print("The program is running.")
+    print(io['run_program']) 
 
     type_of_web_extraction = get_web_extraction_choice()
 
     print(f"\nYour current 'pages-to-crawl-file' is: {conf.pages_to_crawl_file}")
-    answer_change_pages_to_crawl = input("Do you want to change it y/n? ")
-    if answer_change_pages_to_crawl == "y":
+    answer_change_pages_to_crawl = input(io['question_change_file'])
+    if answer_change_pages_to_crawl.lower() == "y":
         new_pages_to_crawl = choose_new_file_input('Pages-to-crawl-file')
         conf.pages_to_crawl_file = new_pages_to_crawl if new_pages_to_crawl else conf.pages_to_crawl_file
 
     print(f"\nYour current basmetadata-file is: {conf.basmetadata_file}")
-    answer_change_basmetadata = input("Do you want to change it y/n? ")
-    if answer_change_basmetadata == "y":
+    answer_change_basmetadata = input(io['question_change_file'])
+    if answer_change_basmetadata.lower() == "y":
         new_basmetadata = choose_new_file_input('Basmetadata-file')
         conf.basmetadata_file = new_basmetadata if new_basmetadata else conf.basmetadata_file
 
-    print("\nRunning the web extraction ....")
-    run_web_extraction(conf.pages_to_crawl_file, conf.basmetadata_file, const.WIDTH_Of_SCREENSHOT, conf.headless_for_full_height, type_of_web_extraction, conf.xsd_file, conf.contract, conf.systemnamn)
-    print("Web extraction completed!")
+    print(io['run_web_extraction'])
+    run_web_extraction(type_of_web_extraction)
+    print(io['extraction completed'])
 
 
 def case_one_headless():
     conf.headless_for_full_height = not conf.headless_for_full_height
-    print(f"Headless = {conf.headless_for_full_height}")
+    print(f"Headless is set to {conf.headless_for_full_height}")
 
 
 def case_two_xsd():
     print(f"\nYour current 'XSD-file' is: {conf.xsd_file}")
-    answer_change_xsd = input("Do you want to change it y/n? ")
-    if answer_change_xsd == "y":
+    answer_change_xsd = input(io['question_change_file'])
+    if answer_change_xsd.lower() == "y":
         new_xsd_file = choose_new_file_input('XSD-file')
         conf.pages_to_crawl_file = new_xsd_file if new_xsd_file else conf.xsd_file
 
@@ -539,17 +538,17 @@ def case_two_xsd():
 def case_three_contract():
     if conf.contract != "":
         print(f"Your current Contract-file is:  {conf.contract}")
-    conf.contract = input("Enter your new Contract-file: ")
+    conf.contract = input(io['new_contract']) 
 
 
 def exit_program():
-    print("Exited the program")
+    print(io['exited_program']) 
     sys.exit()
 
 
 def start_program():
-    print("Welcome to Mediahanteraren")
-
+    print(io['welcome'])
+    
     while True:
         print("************************************")
         print("You can choose one of the following actions:")
@@ -560,7 +559,7 @@ def start_program():
         print("3: to change Contract-file")
         print("4 to change Systemnamn")
         print("************************************")
-        user_input = input("Enter a choice: ")
+        user_input = input(io['question_choice']) 
 
         match user_input.lower():
             case "1":
@@ -576,7 +575,8 @@ def start_program():
             case "r":
                 case_run()
             case _:
-                print("Not a correct choice. Please try again.")
+                print(io['invalid_choice'])
+                
 
 
 if __name__ == "__main__":
@@ -584,8 +584,8 @@ if __name__ == "__main__":
     try:
         start_program()
     except KeyboardInterrupt:
-        print("Exited the program with cntl+c")
+        print(io['exit_ctrlc']) 
     except Exception as e:
         print(f"Exited with error: {e}")
     finally:
-        print("Goodbye!")
+        print(io['goodbye'])  
