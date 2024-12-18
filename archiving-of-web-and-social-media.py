@@ -437,8 +437,8 @@ def case_four_systemnamn():
 
     print(systemnamn_message)
     print("************************************")
-    print('Type 1 to change Systemnamn')
-    print('Type 2 to clear it to choose the basmetadata "URSPRUNG" instead')
+    print('1: to change Systemnamn')
+    print('2: to clear it to choose the basmetadata "URSPRUNG" instead')
     print('Type any other key to exit this menu')
     print("************************************")
 
@@ -454,7 +454,7 @@ def case_four_systemnamn():
 
 
 def choose_new_file_input(file_type_name):
-    print(f"You are about to change which file to use as your {file_type_name.lower()}.")
+    print(f"\nYou are about to change which file to use as your {file_type_name.lower()}.")
     print("Write the new path to your file or write 'quit' to go back without making any changes.")
 
     while True:
@@ -504,21 +504,40 @@ def case_run():
 
     type_of_web_extraction = get_web_extraction_choice()
 
-    print(f"Your current 'pages-to-crawl-file' is: {conf.pages_to_crawl_file}")
+    print(f"\nYour current 'pages-to-crawl-file' is: {conf.pages_to_crawl_file}")
     answer_change_pages_to_crawl = input("Do you want to change it y/n? ")
     if answer_change_pages_to_crawl == "y":
         new_pages_to_crawl = choose_new_file_input('Pages-to-crawl-file')
         conf.pages_to_crawl_file = new_pages_to_crawl if new_pages_to_crawl else conf.pages_to_crawl_file
 
-    print(f"Your current basmetadata-file is: {conf.basmetadata_file}")
+    print(f"\nYour current basmetadata-file is: {conf.basmetadata_file}")
     answer_change_basmetadata = input("Do you want to change it y/n? ")
     if answer_change_basmetadata == "y":
         new_basmetadata = choose_new_file_input('Basmetadata-file')
         conf.basmetadata_file = new_basmetadata if new_basmetadata else conf.basmetadata_file
 
-    print("Running the web extraction ....")
+    print("\nRunning the web extraction ....")
     run_web_extraction(conf.pages_to_crawl_file, conf.basmetadata_file, const.WIDTH_Of_SCREENSHOT, conf.headless_for_full_height, type_of_web_extraction, conf.xsd_file, conf.contract, conf.systemnamn)
     print("Web extraction completed!")
+
+
+def case_one_headless():
+    conf.headless_for_full_height = not conf.headless_for_full_height
+    print(f"Headless = {conf.headless_for_full_height}")
+
+
+def case_two_xsd():
+    print(f"\nYour current 'XSD-file' is: {conf.xsd_file}")
+    answer_change_xsd = input("Do you want to change it y/n? ")
+    if answer_change_xsd == "y":
+        new_xsd_file = choose_new_file_input('XSD-file')
+        conf.pages_to_crawl_file = new_xsd_file if new_xsd_file else conf.xsd_file
+
+
+def case_three_contract():
+    if conf.contract != "":
+        print(f"Your current Contract-file is:  {conf.contract}")
+    conf.contract = input("Enter your new Contract-file: ")
 
 
 def start_program():
@@ -526,26 +545,22 @@ def start_program():
 
     while True:
         print("************************************")
-        print("Type 'Exit' or ctrl+c to quit at any time.")
-        print("Type 'R' to run web extraction")
-        print("Type 1 to toogle Headless setting")
-        print("Type 2 to change XSD-file")
-        print("Type 3 to change Contract-file")
-        print("Type 4 to change Systemnamn")
+        print("'Exit' or ctrl+c to quit at any time.")
+        print("'R' to run web extraction")
+        print("1: to toogle Headless setting")
+        print("2: to change XSD-file")
+        print("3: to change Contract-file")
+        print("4 to change Systemnamn")
         print("************************************")
         user_input = input("Enter a choise: ")
 
         match user_input.lower():
             case "1":
-                conf.headless_for_full_height = not conf.headless_for_full_height
-                print(f"Headless = {conf.headless_for_full_height}")
+                case_one_headless()
             case "2":
-                print(f"Your current XSD-file is:  {conf.xsd_file}")
-                conf.xsd_file = input("Enter your new XSD-file: ")
+                case_two_xsd()
             case "3":
-                if conf.contract != "":
-                    print(f"Your current Contract-file is:  {conf.contract}")
-                conf.contract = input("Enter your new Contract-file: ")
+                case_three_contract()
             case "4":
                 case_four_systemnamn()
             case "exit":
