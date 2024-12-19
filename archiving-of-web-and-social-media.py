@@ -95,6 +95,19 @@ def prepare_and_clean_columns_and_index(data):
     return data
 
 
+def get_timeout(platform):
+    default = 30
+    timeouts = {
+        "gislaved.se": 10,
+        "insidan.gislaved.se": 10,
+        "facebook": 20,
+        "instagram": 30,
+        "linkedin": 20,
+        "general":20
+    }
+    return timeouts.get(platform.lower(), default)
+
+
 def get_webpage_metadata(url, driver):
     driver.get(url)
     title = driver.title
@@ -187,8 +200,9 @@ def login_to_instagram(driver):
     username = os.getenv("instagram_user")
     password = os.getenv("instagram_password")
     driver.get(const.PATH_TO_INSTAGRAM)
-    seconds_to_wait_for_page_to_load = 10
-    driver.implicitly_wait(seconds_to_wait_for_page_to_load)
+    timeout_seconds = get_timeout('instagram')
+
+    driver.implicitly_wait(timeout_seconds)
 
     try:
         driver.find_element(By.XPATH, const.INSTAGRAM_COOKIE_BANNER).click()
@@ -210,12 +224,11 @@ def login_to_linkedin(driver):
     username = os.getenv("linkedin_user")
     password = os.getenv("linkedin_password")
     driver.get(const.PATH_TO_LINKEDIN)
-    seconds_to_wait_for_page_to_load = 10
-    seconds_to_wait_item_present = 10
-    driver.implicitly_wait(seconds_to_wait_for_page_to_load)
+    timeout_seconds = get_timeout('linkedin')
+    driver.implicitly_wait(timeout_seconds)
 
     try:
-        accept_button = WebDriverWait(driver, seconds_to_wait_item_present).until(
+        accept_button = WebDriverWait(driver, timeout_seconds).until(
             EC.element_to_be_clickable((By.XPATH, const.LINKEDIN_ACCEPT_BUTTON1))
         )
         accept_button.click()
@@ -230,13 +243,13 @@ def login_to_linkedin(driver):
     password_field.clear()
     password_field.send_keys(password)
 
-    login_button = WebDriverWait(driver, seconds_to_wait_item_present).until(
+    login_button = WebDriverWait(driver, timeout_seconds).until(
         EC.element_to_be_clickable((By.XPATH, const.LINKEDIN_LOGIN_BUTTON))
     )
     login_button.click()
 
     try:
-        accept_button = WebDriverWait(driver, seconds_to_wait_item_present).until(
+        accept_button = WebDriverWait(driver, timeout_seconds).until(
             EC.element_to_be_clickable((By.XPATH, const.LINKEDIN_ACCEPT_BUTTON2))
         )
         accept_button.click()
@@ -249,12 +262,11 @@ def login_to_facebook(driver):
     password = os.getenv("facebook_password")
     driver.get(const.PATH_TO_FACEBOOK)
     driver.maximize_window()
-    seconds_to_wait_for_page_to_load = 20
-    seconds_to_wait_item_present = 10
-    driver.implicitly_wait(seconds_to_wait_for_page_to_load)
+    timeout_seconds = get_timeout('facebook')
+    driver.implicitly_wait(timeout_seconds)
 
     try:
-        wait = WebDriverWait(driver, seconds_to_wait_item_present)
+        wait = WebDriverWait(driver, timeout_seconds)
         cookie_button = wait.until(EC.presence_of_element_located(
             (By.XPATH, const.FACEBBOK_COOKIE_BANNER)
         ))
@@ -280,7 +292,7 @@ def login_to_facebook(driver):
         print(f"Error: {e}")
 
     try:
-        wait = WebDriverWait(driver, seconds_to_wait_item_present)
+        wait = WebDriverWait(driver, timeout_seconds)
         cookie_button = wait.until(EC.presence_of_element_located(
             (By.XPATH, const.FACEBBOK_COOKIE_BANNER)
         ))
@@ -293,10 +305,10 @@ def login_to_facebook(driver):
 
 
 def capture_full_page_screenshot_with_custom_width(output_path, width_of_screenshot, driver, type_of_web_extraction):
-    seconds_to_wait_for_page_to_load = 5
-    seconds_to_wait_item_present = 10
+    timeout_seconds = get_timeout('general')
+
     try:
-        WebDriverWait(driver, seconds_to_wait_item_present).until(
+        WebDriverWait(driver, timeout_seconds).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "body"))
         )
     except Exception as e:
@@ -305,12 +317,13 @@ def capture_full_page_screenshot_with_custom_width(output_path, width_of_screens
     match type_of_web_extraction.lower():
         case "gislaved.se":
             try:
-                driver.find_element(By.XPATH, const.GISLAVED_SE_COOKIE_BUTTON).click()
+                wait = WebDriverWait(driver, timeout_seconds) 
+                wait.until(EC.element_to_be_clickable((By.XPATH, const.GISLAVED_SE_COOKIE_BUTTON))).click()
             except Exception as e:
                 print(f"Error click button cookies: {e}")
         case "linkedin":
             try:
-                dismiss_button = WebDriverWait(driver, seconds_to_wait_item_present).until(
+                dismiss_button = WebDriverWait(driver, timeout_seconds).until(
                     EC.element_to_be_clickable((By.CSS_SELECTOR, const.LINKEDIN_REJECT_BUTTON))
                 )
                 dismiss_button.click()
@@ -319,13 +332,15 @@ def capture_full_page_screenshot_with_custom_width(output_path, width_of_screens
                 print(f"Error: {e}")
         case "instagram":
             try:
-                element = driver.find_element(By.XPATH, const.INSTAGRAM_LOGIN_BANNER)
+                wait = WebDriverWait(driver, timeout_seconds)  
+                element = wait.until(EC.element_to_be_clickable((By.XPATH, const.INSTAGRAM_LOGIN_BANNER)))
                 actions = ActionChains(driver)
                 actions.move_to_element(element).click().perform()
+
             except Exception as e:
                 print(f"Error click  login button s: {e}")
 
-    driver.implicitly_wait(seconds_to_wait_for_page_to_load)
+    driver.implicitly_wait(timeout_seconds)
     page_height = driver.execute_script("return document.documentElement.scrollHeight")
     driver.set_window_size(width_of_screenshot, page_height)
     driver.save_screenshot(output_path)
@@ -391,8 +406,8 @@ def run_web_extraction(type_of_web_extraction):
 
     options = Options()
     options.add_argument(f"--window-size={const.WIDTH_Of_SCREENSHOT},1080")
-    options.add_argument("--disable-gpu")  # Disable GPU acceleration for stability
-    options.add_argument("--no-sandbox")   # Required for some environments like Docker
+    options.add_argument("--disable-gpu")
+    options.add_argument("--no-sandbox")
 
     if conf.headless_for_full_height:
         options.add_argument("--headless")
@@ -576,7 +591,6 @@ def start_program():
                 case_run()
             case _:
                 print(io['invalid_choice'])
-                
 
 
 if __name__ == "__main__":
