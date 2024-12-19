@@ -32,11 +32,4 @@ IO_STRINGS = {
     'welcome': "Welcome to Mediahanteraren",
     'exit_ctrlc': "Exited the program with ctrl+c",
     'goodbye': "Goodbye!"
-    
-    
-    
-    
-     
-    
 }
-
