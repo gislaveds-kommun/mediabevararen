@@ -45,8 +45,8 @@ from openpyxl import Workbook
 from dotenv import load_dotenv
 
 import constants as const
-from constants import IO_STRINGS as io
 import config as conf
+from constants import IO_STRINGS as io
 
 
 def convert_png_to_tiff(input_path_png, output_path_tiff):
