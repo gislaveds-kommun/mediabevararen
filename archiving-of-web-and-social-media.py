@@ -32,10 +32,10 @@ from urllib.parse import urlparse
 import pandas as pd
 from PIL import Image
 from lxml import etree
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.chrome.options import Options
+# from selenium import webdriver
+# from selenium.webdriver.chrome.service import Service
+# from webdriver_manager.chrome import ChromeDriverManager
+# from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
@@ -47,6 +47,7 @@ from dotenv import load_dotenv
 import constants as const
 import config as conf
 from constants import IO_STRINGS as io
+from webdriver_class import Webdriver_class
 
 
 def convert_png_to_tiff(input_path_png, output_path_tiff):
@@ -96,7 +97,14 @@ def prepare_and_clean_columns_and_index(data):
     return data
 
 
-def get_webpage_metadata(url, driver):
+def send_input(name, value):
+    name_field = Webdriver_class.get_driver().find_element(By.NAME, name)
+    name_field.clear()
+    name_field.send_keys(value)
+
+
+def get_webpage_metadata(url):
+    driver = Webdriver_class.get_driver()
     driver.get(url)
     title = driver.title
     try:
@@ -124,7 +132,7 @@ def get_webpage_metadata(url, driver):
     return title, keywords, description
 
 
-def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basmetadata, driver):
+def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basmetadata):
     url = url_and_metadata_for_website[0]
     webbsida = url_and_metadata_for_website[1]
     root = ET.Element(
@@ -159,7 +167,7 @@ def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, 
     ET.SubElement(dokument, "Site").text = get_domain_from_url(url)
     ET.SubElement(dokument, "Webbsida").text = webbsida
     ET.SubElement(dokument, "Webbadress").text = url
-    title, keywords, description = get_webpage_metadata(url, driver)
+    title, keywords, description = get_webpage_metadata(url)
     ET.SubElement(dokument, "WebPageTitle").text = title
     ET.SubElement(dokument, "WebPageKeywords").text = keywords
     ET.SubElement(dokument, "WebPageDescription").text = description
@@ -199,11 +207,12 @@ def validate_xml(xml_file, xsd_file):
     return False
 
 
-def login_to_instagram(driver):
+def login_to_instagram():
     username = os.getenv("instagram_user")
     password = os.getenv("instagram_password")
-    driver.get(const.PATH_TO_INSTAGRAM)
 
+    driver = Webdriver_class.get_driver()
+    driver.get(const.PATH_TO_INSTAGRAM)
     driver.implicitly_wait(const.TIMEOUT_SECONDS)
 
     try:
@@ -212,13 +221,16 @@ def login_to_instagram(driver):
     except Exception as e:
         print(f"Error click button cookies: {e}")
 
-    input_field = driver.find_element(By.NAME, "username")
-    input_field.clear()
-    input_field.send_keys(username)
+    send_input("username", username)
+    send_input("password", password)
 
-    password_field = driver.find_element(By.NAME, "password")
-    password_field.clear()
-    password_field.send_keys(password)
+    # input_field = driver.find_element(By.NAME, "username")
+    # input_field.clear()
+    # input_field.send_keys(username)
+
+    # password_field = driver.find_element(By.NAME, "password")
+    # password_field.clear()
+    # password_field.send_keys(password)
 
     driver.find_element(By.XPATH, const.INSTAGRAM_LOGIN_BUTTON).click()
 
@@ -307,8 +319,10 @@ def login_to_facebook(driver):
         print(f"Error clicking the button: {e}")
 
 
-def capture_full_page_screenshot_with_custom_width(output_path, width_of_screenshot, driver, type_of_web_extraction):
+def capture_full_page_screenshot_with_custom_width(output_path, width_of_screenshot, type_of_web_extraction, url):
 
+    driver = Webdriver_class.get_driver()
+    driver.get(url)
     try:
         WebDriverWait(driver, const.TIMEOUT_SECONDS).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "body"))
@@ -351,14 +365,14 @@ def capture_full_page_screenshot_with_custom_width(output_path, width_of_screens
     print(f"Saved screenshot to {output_path}")
 
 
-def create_tiff_screenshot(url, folder_name, width_of_screenshot, driver, type_of_web_extraction):
+def create_tiff_screenshot(url, folder_name, width_of_screenshot, type_of_web_extraction):
     filename = create_file_name(url)
     print(f"Processing {filename}")
     output_path_png = "image_temp/" + filename + '.png'
     tiff_image_name = filename + '.tif'
     output_path_tiff = folder_name + "/" + tiff_image_name
 
-    capture_full_page_screenshot_with_custom_width(output_path_png, width_of_screenshot, driver, type_of_web_extraction)
+    capture_full_page_screenshot_with_custom_width(output_path_png, width_of_screenshot, type_of_web_extraction, url)
 
     convert_png_to_tiff(output_path_png, output_path_tiff)
 
@@ -409,35 +423,35 @@ def run_web_extraction(type_of_web_extraction):
     if not os.path.isdir(const.PATH_TO_IMAGE_TEMP):
         os.mkdir(const.PATH_TO_IMAGE_TEMP)
 
-    options = Options()
-    options.add_argument(f"--window-size={const.WIDTH_Of_SCREENSHOT},1080")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--no-sandbox")
+    # options = Options()
+    # options.add_argument(f"--window-size={const.WIDTH_Of_SCREENSHOT},1080")
+    # options.add_argument("--disable-gpu")
+    # options.add_argument("--no-sandbox")
 
-    if conf.headless_for_full_height:
-        options.add_argument("--headless")
+    # if conf.headless_for_full_height:
+    #    options.add_argument("--headless")
 
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-    driver.maximize_window()
+    # driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    # driver.maximize_window()
 
     match type_of_web_extraction.lower():
         case "facebook":
-            login_to_facebook(driver)
+            login_to_facebook()
         case "linkedin":
-            login_to_linkedin(driver)
+            login_to_linkedin()
         case "instagram":
-            login_to_instagram(driver)
+            login_to_instagram()
 
     xml_valid = True
     for url_and_metadata_for_website in pages_as_lists:
         if xml_valid:
             url = url_and_metadata_for_website[0]
-            driver.get(url)
-            tiff_image_name = create_tiff_screenshot(url, folder_name, const.WIDTH_Of_SCREENSHOT, driver, type_of_web_extraction)
+            #driver.get(url)
+            tiff_image_name = create_tiff_screenshot(url, folder_name, const.WIDTH_Of_SCREENSHOT, type_of_web_extraction)
             print(f"converted to tif {tiff_image_name}")
 
             xml_file_name = get_part_of_string(tiff_image_name, ".", 0) + ".xml"
-            create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basmetadata, driver)
+            create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basmetadata)
 
             print(xml_file_name)
             xml_file_path = folder_name + "/" + xml_file_name
@@ -445,10 +459,9 @@ def run_web_extraction(type_of_web_extraction):
 
         else:
             print(f"xml not valid {xml_file_path}")
-
-    driver.quit()
+    Webdriver_class.get_driver().quit()
     create_package_creator_config(basmetadata, folder_name, conf.xsd_file, conf.contract, conf.systemnamn)
-
+    
 
 def case_four_systemnamn():
     systemnamn_message = f"Your current Systemnamn is: {conf.systemnamn}"
