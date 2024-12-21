@@ -10,7 +10,7 @@ Created on Thu Aug 29 16:19:39 2024
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,P
+    This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -20,15 +20,18 @@ Created on Thu Aug 29 16:19:39 2024
 
 """
 
-from PIL import Image
-import pandas as pd
+import os
+import sys
 import re
 import xml.etree.ElementTree as ET
 import xml.dom.minidom
-from lxml import etree
 from datetime import datetime
-import os
-import sys
+from pathlib import Path
+from urllib.parse import urlparse
+
+import pandas as pd
+from PIL import Image
+from lxml import etree
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
@@ -36,16 +39,14 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
-from urllib.parse import urlparse
-from openpyxl import Workbook
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
-from pathlib import Path
+from openpyxl import Workbook
 from dotenv import load_dotenv
+
 import constants as const
-from constants import IO_STRINGS as io
 import config as conf
-load_dotenv()
+from constants import IO_STRINGS as io
 
 
 def convert_png_to_tiff(input_path_png, output_path_tiff):
@@ -54,7 +55,7 @@ def convert_png_to_tiff(input_path_png, output_path_tiff):
 
 
 def replace_unwanted_chars(filename, replacement):
-    return re.sub('[^a-zA-Z]', replacement, filename)  
+    return re.sub('[^a-zA-Z]', replacement, filename)
 
 
 def get_part_of_string(input_string, split_by, part):
@@ -66,6 +67,7 @@ def create_file_name(url):
     second_part_of_filename = get_part_of_string(filename_first_50_chars_in_url, "//", 1)
     cleaned_filename = replace_unwanted_chars(second_part_of_filename, "_")
     unique_filename_date_time = cleaned_filename + "_" + datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+
     return unique_filename_date_time
 
 
@@ -88,10 +90,9 @@ def get_domain_from_url(url):
 
 
 def prepare_and_clean_columns_and_index(data):
-    data.columns = data.columns.str.strip()
-    data.index = data.index.str.strip()
-    data.columns = data.columns.str.lower()
-    data.index = data.index.str.lower()
+    data.columns = data.columns.str.strip().str.lower()
+    data.index = data.index.str.strip().str.lower()
+
     return data
 
 
@@ -119,13 +120,23 @@ def get_webpage_metadata(url, driver):
     except Exception as e:
         description = const.NO_DESCRIPTION_TEXT
         print("Error occurred trying to get description data: :", e)
+
     return title, keywords, description
 
 
 def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basmetadata, driver):
     url = url_and_metadata_for_website[0]
     webbsida = url_and_metadata_for_website[1]
-    root = ET.Element("Leveransobjekt", attrib={"xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance", "xsi:noNamespaceSchemaLocation": "FREDA-GS-Webbsidor-v1_0.xsd", "xmlns": "freda"})
+    root = ET.Element(
+        "Leveransobjekt",
+        attrib={
+            "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
+            "xsi:noNamespaceSchemaLocation": "FREDA-GS-Webbsidor-v1_0.xsd",
+            "xmlns": "freda"
+        }
+    )
+
+    # The order of the subelements is critical
     dokument = ET.SubElement(root, "Dokument")
 
     ET.SubElement(dokument, "Organisation").text = str(basmetadata['value']['organisation'])
@@ -134,10 +145,12 @@ def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, 
     ET.SubElement(dokument, "Arkiv").text = str(basmetadata['value']['arkiv'])
     ET.SubElement(dokument, "Serie").text = str(basmetadata['value']['serie'])
     ET.SubElement(dokument, "KlassificeringsstrukturText").text = str(basmetadata['value']['klassificeringsstrukturtext'])
+
     process_strukturerat = ET.SubElement(dokument, "ProcessStrukturerat")            
     ET.SubElement(process_strukturerat, "nivå1").text = str(basmetadata['value']['nivå1'])
     ET.SubElement(process_strukturerat, "nivå2").text = str(basmetadata['value']['nivå2'])
     ET.SubElement(process_strukturerat, "nivå3").text = str(basmetadata['value']['nivå3'])
+
     ET.SubElement(dokument, "Ursprung").text = str(basmetadata['value']['ursprung'])
     ET.SubElement(dokument, "Arkiveringsdatum").text = formatted_date
     ET.SubElement(dokument, "Sekretess").text = str(basmetadata['value']['sekretess'])
@@ -153,6 +166,7 @@ def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, 
     ET.SubElement(dokument, "WebPageCurrentURL").text = url
     ET.SubElement(dokument, "Informationsdatum").text = formatted_date
     ET.SubElement(dokument, "Kommentar").text = str(basmetadata['value']['kommentar'])
+
     ET.SubElement(root, "DokumentFilnamn").text = tiff_image_name
 
     declaration = '<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -178,8 +192,10 @@ def validate_xml(xml_file, xsd_file):
 
     except etree.XMLSyntaxError as e:
         print(f"XML syntax error: {e}")
+
     except etree.DocumentInvalid as e:
         print(f"Validation error: {e}")
+
     return False
 
 
@@ -187,11 +203,12 @@ def login_to_instagram(driver):
     username = os.getenv("instagram_user")
     password = os.getenv("instagram_password")
     driver.get(const.PATH_TO_INSTAGRAM)
-    seconds_to_wait_for_page_to_load = 10
-    driver.implicitly_wait(seconds_to_wait_for_page_to_load)
+
+    driver.implicitly_wait(const.TIMEOUT_SECONDS)
 
     try:
         driver.find_element(By.XPATH, const.INSTAGRAM_COOKIE_BANNER).click()
+
     except Exception as e:
         print(f"Error click button cookies: {e}")
 
@@ -210,15 +227,14 @@ def login_to_linkedin(driver):
     username = os.getenv("linkedin_user")
     password = os.getenv("linkedin_password")
     driver.get(const.PATH_TO_LINKEDIN)
-    seconds_to_wait_for_page_to_load = 10
-    seconds_to_wait_item_present = 10
-    driver.implicitly_wait(seconds_to_wait_for_page_to_load)
+    driver.implicitly_wait(const.TIMEOUT_SECONDS)
 
     try:
-        accept_button = WebDriverWait(driver, seconds_to_wait_item_present).until(
+        accept_button = WebDriverWait(driver, const.TIMEOUT_SECONDS).until(
             EC.element_to_be_clickable((By.XPATH, const.LINKEDIN_ACCEPT_BUTTON1))
         )
         accept_button.click()
+
     except Exception as e:
         print(f"Error: {e}")
 
@@ -230,16 +246,17 @@ def login_to_linkedin(driver):
     password_field.clear()
     password_field.send_keys(password)
 
-    login_button = WebDriverWait(driver, seconds_to_wait_item_present).until(
+    login_button = WebDriverWait(driver, const.TIMEOUT_SECONDS).until(
         EC.element_to_be_clickable((By.XPATH, const.LINKEDIN_LOGIN_BUTTON))
     )
     login_button.click()
 
     try:
-        accept_button = WebDriverWait(driver, seconds_to_wait_item_present).until(
+        accept_button = WebDriverWait(driver, const.TIMEOUT_SECONDS).until(
             EC.element_to_be_clickable((By.XPATH, const.LINKEDIN_ACCEPT_BUTTON2))
         )
         accept_button.click()
+
     except Exception as e:
         print(f"Error: {e}")
 
@@ -249,12 +266,10 @@ def login_to_facebook(driver):
     password = os.getenv("facebook_password")
     driver.get(const.PATH_TO_FACEBOOK)
     driver.maximize_window()
-    seconds_to_wait_for_page_to_load = 20
-    seconds_to_wait_item_present = 10
-    driver.implicitly_wait(seconds_to_wait_for_page_to_load)
+    driver.implicitly_wait(const.TIMEOUT_SECONDS)
 
     try:
-        wait = WebDriverWait(driver, seconds_to_wait_item_present)
+        wait = WebDriverWait(driver, const.TIMEOUT_SECONDS)
         cookie_button = wait.until(EC.presence_of_element_located(
             (By.XPATH, const.FACEBBOK_COOKIE_BANNER)
         ))
@@ -280,7 +295,7 @@ def login_to_facebook(driver):
         print(f"Error: {e}")
 
     try:
-        wait = WebDriverWait(driver, seconds_to_wait_item_present)
+        wait = WebDriverWait(driver, const.TIMEOUT_SECONDS)
         cookie_button = wait.until(EC.presence_of_element_located(
             (By.XPATH, const.FACEBBOK_COOKIE_BANNER)
         ))
@@ -293,24 +308,26 @@ def login_to_facebook(driver):
 
 
 def capture_full_page_screenshot_with_custom_width(output_path, width_of_screenshot, driver, type_of_web_extraction):
-    seconds_to_wait_for_page_to_load = 5
-    seconds_to_wait_item_present = 10
+
     try:
-        WebDriverWait(driver, seconds_to_wait_item_present).until(
+        WebDriverWait(driver, const.TIMEOUT_SECONDS).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "body"))
         )
+
     except Exception as e:
         print(f"Error during page load: {e}")
 
     match type_of_web_extraction.lower():
         case "gislaved.se":
             try:
-                driver.find_element(By.XPATH, const.GISLAVED_SE_COOKIE_BUTTON).click()
+                wait = WebDriverWait(driver, const.TIMEOUT_SECONDS) 
+                wait.until(EC.element_to_be_clickable((By.XPATH, const.GISLAVED_SE_COOKIE_BUTTON))).click()
+
             except Exception as e:
                 print(f"Error click button cookies: {e}")
         case "linkedin":
             try:
-                dismiss_button = WebDriverWait(driver, seconds_to_wait_item_present).until(
+                dismiss_button = WebDriverWait(driver, const.TIMEOUT_SECONDS).until(
                     EC.element_to_be_clickable((By.CSS_SELECTOR, const.LINKEDIN_REJECT_BUTTON))
                 )
                 dismiss_button.click()
@@ -319,13 +336,15 @@ def capture_full_page_screenshot_with_custom_width(output_path, width_of_screens
                 print(f"Error: {e}")
         case "instagram":
             try:
-                element = driver.find_element(By.XPATH, const.INSTAGRAM_LOGIN_BANNER)
+                wait = WebDriverWait(driver, const.TIMEOUT_SECONDS)  
+                element = wait.until(EC.element_to_be_clickable((By.XPATH, const.INSTAGRAM_LOGIN_BANNER)))
                 actions = ActionChains(driver)
                 actions.move_to_element(element).click().perform()
+
             except Exception as e:
                 print(f"Error click  login button s: {e}")
 
-    driver.implicitly_wait(seconds_to_wait_for_page_to_load)
+    driver.implicitly_wait(const.TIMEOUT_SECONDS)
     page_height = driver.execute_script("return document.documentElement.scrollHeight")
     driver.set_window_size(width_of_screenshot, page_height)
     driver.save_screenshot(output_path)
@@ -342,6 +361,7 @@ def create_tiff_screenshot(url, folder_name, width_of_screenshot, driver, type_o
     capture_full_page_screenshot_with_custom_width(output_path_png, width_of_screenshot, driver, type_of_web_extraction)
 
     convert_png_to_tiff(output_path_png, output_path_tiff)
+
     return tiff_image_name
 
 
@@ -391,8 +411,8 @@ def run_web_extraction(type_of_web_extraction):
 
     options = Options()
     options.add_argument(f"--window-size={const.WIDTH_Of_SCREENSHOT},1080")
-    options.add_argument("--disable-gpu")  # Disable GPU acceleration for stability
-    options.add_argument("--no-sandbox")   # Required for some environments like Docker
+    options.add_argument("--disable-gpu")
+    options.add_argument("--no-sandbox")
 
     if conf.headless_for_full_height:
         options.add_argument("--headless")
@@ -501,7 +521,7 @@ def get_web_extraction_choice():
 
 
 def case_run():
-    print(io['run_program']) 
+    print(io['run_program'])
 
     type_of_web_extraction = get_web_extraction_choice()
 
@@ -538,18 +558,19 @@ def case_two_xsd():
 def case_three_contract():
     if conf.contract != "":
         print(f"Your current Contract-file is:  {conf.contract}")
-    conf.contract = input(io['new_contract']) 
+    conf.contract = input(io['new_contract'])
 
 
 def exit_program():
-    print(io['exited_program']) 
+    print(io['exited_program'])
+    print(io['goodbye'])
     sys.exit()
 
 
 def start_program():
     print(io['welcome'])
-    
-    while True:
+    exit = False
+    while not exit:
         print("************************************")
         print("You can choose one of the following actions:")
         print("'Exit' or ctrl+c to quit at any time.")
@@ -557,9 +578,9 @@ def start_program():
         print("1: to toogle Headless setting")
         print("2: to change XSD-file")
         print("3: to change Contract-file")
-        print("4 to change Systemnamn")
+        print("4: to change Systemnamn")
         print("************************************")
-        user_input = input(io['question_choice']) 
+        user_input = input(io['question_choice'])
 
         match user_input.lower():
             case "1":
@@ -571,21 +592,21 @@ def start_program():
             case "4":
                 case_four_systemnamn()
             case "exit":
-                exit_program()
+                exit = True
             case "r":
                 case_run()
             case _:
                 print(io['invalid_choice'])
-                
 
 
 if __name__ == "__main__":
 
+    load_dotenv()
     try:
         start_program()
     except KeyboardInterrupt:
-        print(io['exit_ctrlc']) 
+        print(io['exit_ctrlc'])
     except Exception as e:
         print(f"Exited with error: {e}")
     finally:
-        print(io['goodbye'])  
+        exit_program()
