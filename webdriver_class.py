@@ -7,7 +7,7 @@ import constants as const
 import config as conf
 
 
-class Webdriver_class:
+class WebdriverClass:
     _driver = None
 
     @classmethod
@@ -36,3 +36,13 @@ class Webdriver_class:
             options.add_argument("--headless")
 
         return options
+
+    @classmethod
+    def load_webpage(cls, url):
+        cls._driver.get(url)
+
+    @classmethod
+    def quit_driver(cls):
+        if cls._driver is not None:
+            cls._driver.quit()
+            cls._driver = None

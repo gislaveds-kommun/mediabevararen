@@ -47,7 +47,7 @@ from dotenv import load_dotenv
 import constants as const
 import config as conf
 from constants import IO_STRINGS as io
-from webdriver_class import Webdriver_class
+from webdriver_class import WebdriverClass
 
 
 def convert_png_to_tiff(input_path_png, output_path_tiff):
@@ -97,14 +97,27 @@ def prepare_and_clean_columns_and_index(data):
     return data
 
 
-def send_input(name, value):
-    name_field = Webdriver_class.get_driver().find_element(By.NAME, name)
-    name_field.clear()
-    name_field.send_keys(value)
+def send_input(name, value, type):
+    match type.lower():
+        case "name":
+            name_field = WebdriverClass.get_driver().find_element(By.NAME, name)
+            name_field.clear()
+            name_field.send_keys(value)
+
+        case "id":
+            name_field = WebdriverClass.get_driver().find_element(By.ID, name)
+            name_field.clear()
+            name_field.send_keys(value)
+
+        case "id_return":
+            name_field = WebdriverClass.get_driver().find_element(By.ID, name)
+            name_field.clear()
+            name_field.send_keys(value)
+            name_field.send_keys(Keys.RETURN)
 
 
 def get_webpage_metadata(url):
-    driver = Webdriver_class.get_driver()
+    driver = WebdriverClass.get_driver()
     driver.get(url)
     title = driver.title
     try:
@@ -211,8 +224,8 @@ def login_to_instagram():
     username = os.getenv("instagram_user")
     password = os.getenv("instagram_password")
 
-    driver = Webdriver_class.get_driver()
-    driver.get(const.PATH_TO_INSTAGRAM)
+    driver = WebdriverClass.get_driver()
+    WebdriverClass.load_webpage(const.PATH_TO_INSTAGRAM)
     driver.implicitly_wait(const.TIMEOUT_SECONDS)
 
     try:
@@ -221,24 +234,17 @@ def login_to_instagram():
     except Exception as e:
         print(f"Error click button cookies: {e}")
 
-    send_input("username", username)
-    send_input("password", password)
-
-    # input_field = driver.find_element(By.NAME, "username")
-    # input_field.clear()
-    # input_field.send_keys(username)
-
-    # password_field = driver.find_element(By.NAME, "password")
-    # password_field.clear()
-    # password_field.send_keys(password)
+    send_input("username", username, "name")
+    send_input("password", password, "name")
 
     driver.find_element(By.XPATH, const.INSTAGRAM_LOGIN_BUTTON).click()
 
 
-def login_to_linkedin(driver):
+def login_to_linkedin():
     username = os.getenv("linkedin_user")
     password = os.getenv("linkedin_password")
-    driver.get(const.PATH_TO_LINKEDIN)
+    driver = WebdriverClass.get_driver()
+    WebdriverClass.load_webpage(const.PATH_TO_LINKEDIN)
     driver.implicitly_wait(const.TIMEOUT_SECONDS)
 
     try:
@@ -250,13 +256,8 @@ def login_to_linkedin(driver):
     except Exception as e:
         print(f"Error: {e}")
 
-    input_field = driver.find_element(By.ID, "username")
-    input_field.clear()
-    input_field.send_keys(username)
-
-    password_field = driver.find_element(By.ID, "password")
-    password_field.clear()
-    password_field.send_keys(password)
+    send_input("username", username, "id")
+    send_input("password", password, "id")
 
     login_button = WebDriverWait(driver, const.TIMEOUT_SECONDS).until(
         EC.element_to_be_clickable((By.XPATH, const.LINKEDIN_LOGIN_BUTTON))
@@ -273,10 +274,11 @@ def login_to_linkedin(driver):
         print(f"Error: {e}")
 
 
-def login_to_facebook(driver):
+def login_to_facebook():
     username = os.getenv("facebook_user")
     password = os.getenv("facebook_password")
-    driver.get(const.PATH_TO_FACEBOOK)
+    driver = WebdriverClass.get_driver()
+    WebdriverClass.load_webpage(const.PATH_TO_FACEBOOK)
     driver.maximize_window()
     driver.implicitly_wait(const.TIMEOUT_SECONDS)
 
@@ -294,14 +296,8 @@ def login_to_facebook(driver):
         print(f"Error clicking the button: {e}")
 
     try:
-        email_input = driver.find_element(By.ID, "email")
-        email_input.clear()
-        email_input.send_keys(username)
-
-        password_input = driver.find_element(By.ID, "pass")
-        password_input.send_keys(password)
-
-        password_input.send_keys(Keys.RETURN)
+        send_input("email", username, "id")
+        send_input("pass", password, "id_return")
 
     except Exception as e:
         print(f"Error: {e}")
@@ -321,8 +317,8 @@ def login_to_facebook(driver):
 
 def capture_full_page_screenshot_with_custom_width(output_path, width_of_screenshot, type_of_web_extraction, url):
 
-    driver = Webdriver_class.get_driver()
-    driver.get(url)
+    driver = WebdriverClass.get_driver()
+    WebdriverClass.load_webpage(url)
     try:
         WebDriverWait(driver, const.TIMEOUT_SECONDS).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "body"))
@@ -423,17 +419,6 @@ def run_web_extraction(type_of_web_extraction):
     if not os.path.isdir(const.PATH_TO_IMAGE_TEMP):
         os.mkdir(const.PATH_TO_IMAGE_TEMP)
 
-    # options = Options()
-    # options.add_argument(f"--window-size={const.WIDTH_Of_SCREENSHOT},1080")
-    # options.add_argument("--disable-gpu")
-    # options.add_argument("--no-sandbox")
-
-    # if conf.headless_for_full_height:
-    #    options.add_argument("--headless")
-
-    # driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-    # driver.maximize_window()
-
     match type_of_web_extraction.lower():
         case "facebook":
             login_to_facebook()
@@ -446,7 +431,6 @@ def run_web_extraction(type_of_web_extraction):
     for url_and_metadata_for_website in pages_as_lists:
         if xml_valid:
             url = url_and_metadata_for_website[0]
-            #driver.get(url)
             tiff_image_name = create_tiff_screenshot(url, folder_name, const.WIDTH_Of_SCREENSHOT, type_of_web_extraction)
             print(f"converted to tif {tiff_image_name}")
 
@@ -459,9 +443,9 @@ def run_web_extraction(type_of_web_extraction):
 
         else:
             print(f"xml not valid {xml_file_path}")
-    Webdriver_class.get_driver().quit()
+    WebdriverClass.quit_driver()
     create_package_creator_config(basmetadata, folder_name, conf.xsd_file, conf.contract, conf.systemnamn)
-    
+
 
 def case_four_systemnamn():
     systemnamn_message = f"Your current Systemnamn is: {conf.systemnamn}"
