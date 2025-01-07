@@ -97,23 +97,18 @@ def prepare_and_clean_columns_and_index(data):
     return data
 
 
-def send_input(name, value, type):
-    match type.lower():
-        case "name":
-            name_field = WebdriverClass.get_driver().find_element(By.NAME, name)
-            name_field.clear()
-            name_field.send_keys(value)
+def send_input_name(name, value):
+    name_field = WebdriverClass.get_driver().find_element(By.NAME, name)
+    name_field.clear()
+    name_field.send_keys(value)
 
-        case "id":
-            name_field = WebdriverClass.get_driver().find_element(By.ID, name)
-            name_field.clear()
-            name_field.send_keys(value)
 
-        case "id_return":
-            name_field = WebdriverClass.get_driver().find_element(By.ID, name)
-            name_field.clear()
-            name_field.send_keys(value)
-            name_field.send_keys(Keys.RETURN)
+def send_input_id(name, value, keys_return=False):
+    name_field = WebdriverClass.get_driver().find_element(By.ID, name)
+    name_field.clear()
+    name_field.send_keys(value)
+    if keys_return:
+        name_field.send_keys(Keys.RETURN)
 
 
 def get_webpage_metadata(url):
@@ -234,8 +229,8 @@ def login_to_instagram():
     except Exception as e:
         print(f"Error click button cookies: {e}")
 
-    send_input("username", username, "name")
-    send_input("password", password, "name")
+    send_input_name("username", username)
+    send_input_name("password", password)
 
     driver.find_element(By.XPATH, const.INSTAGRAM_LOGIN_BUTTON).click()
 
@@ -256,8 +251,8 @@ def login_to_linkedin():
     except Exception as e:
         print(f"Error: {e}")
 
-    send_input("username", username, "id")
-    send_input("password", password, "id")
+    send_input_id("username", username)
+    send_input_id("password", password)
 
     login_button = WebDriverWait(driver, const.TIMEOUT_SECONDS).until(
         EC.element_to_be_clickable((By.XPATH, const.LINKEDIN_LOGIN_BUTTON))
@@ -296,8 +291,8 @@ def login_to_facebook():
         print(f"Error clicking the button: {e}")
 
     try:
-        send_input("email", username, "id")
-        send_input("pass", password, "id_return")
+        send_input_id("email", username)
+        send_input_id("pass", password, True)
 
     except Exception as e:
         print(f"Error: {e}")
