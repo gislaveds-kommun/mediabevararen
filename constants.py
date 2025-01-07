@@ -14,7 +14,7 @@ LINKEDIN_ACCEPT_BUTTON1 = '//button[text()="Acceptera"]'
 LINKEDIN_ACCEPT_BUTTON2 = '//span[text()="Acceptera"]'
 LINKEDIN_REJECT_BUTTON = 'button[aria-label="Avvisa"]'
 FACEBBOK_COOKIE_BANNER = "//span[text()='Tillåt alla cookies']"
-TIMEOUT_SECONDS = "30"
+TIMEOUT_SECONDS = "10"
 
 IO_STRINGS = {
     'empty_systemnamn': "Systemnamn is cleared and basmetadata URSRPUNG is chosen",
