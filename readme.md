@@ -63,7 +63,7 @@ is needed for users and passwords for social media accounts
 >There are two excel files with sample data and you can change these while the program is running as long as you use the same 
 structure as the sample files. The structur is explain down below.
 >
->These three settings files will be explaind here:
+## These three settings files will be explaind here: ###
 
 ### Credentials in .env 
 >create a .evn file with this content below, and put it in the main folder of the program.
@@ -95,9 +95,9 @@ structure as the sample files. The structur is explain down below.
 >Facbook cookie banner has change on the website
 >FACEBOOK_COOKIE_BANNER = "//span[text()='Tillåt alla cookies']"
 >
-> The struture of the input data excel files is exlained here
->
-**Sample exce file for pages**
+
+## The struture of the input data excel files is exlained here ###
+### Sample exce file for pages ###
 >default_sample_pages.xlsx
 >
 >The following is the two columns of the pages excel. The columns need to be exaktly like this.
@@ -107,7 +107,7 @@ structure as the sample files. The structur is explain down below.
 >The first is the url to be crawled.
 >The second is a short description of the url that goes in the FGS node webbsida.
 >
->**Sample excel file for basemetadata**
+>### Sample excel file for basemetadata ###
 >
 >default_sample_metadata.xlsx
 >
