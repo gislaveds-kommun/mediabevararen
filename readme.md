@@ -63,7 +63,7 @@ is needed for users and passwords for social media accounts
 >There are two excel files with sample data and you can change these while the program is running as long as you use the same 
 structure as the sample files. The structur is explain down below.
 >
-## These three settings files will be explaind here: ###
+## The three settings files will be explaind here: ###
 
 ### Credentials in .env 
 >create a .evn file with this content below, and put it in the main folder of the program.
