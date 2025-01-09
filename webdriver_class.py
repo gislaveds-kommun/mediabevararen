@@ -28,7 +28,7 @@ class WebdriverClass:
     @staticmethod
     def get_options():
         options = Options()
-        options.add_argument(f"--window-size={const.WIDTH_Of_SCREENSHOT},1080")
+        options.add_argument(f"--window-size={const.WIDTH_Of_SCREENSHOT},{const.HEIGHT_Of_SCREENSHOT}")
         options.add_argument("--disable-gpu")
         options.add_argument("--no-sandbox")
 
@@ -39,10 +39,19 @@ class WebdriverClass:
 
     @classmethod
     def load_webpage(cls, url):
-        cls._driver.get(url)
+        cls.get_driver().get(url)
+        cls._driver.implicitly_wait(const.TIMEOUT_SECONDS)
 
     @classmethod
     def quit_driver(cls):
         if cls._driver is not None:
             cls._driver.quit()
             cls._driver = None
+
+    @classmethod
+    def take_screenshot(cls, output_path):
+        cls._driver.implicitly_wait(const.TIMEOUT_SECONDS)
+        page_height = cls._driver.execute_script("return document.documentElement.scrollHeight")
+        cls._driver.set_window_size(const.WIDTH_Of_SCREENSHOT, page_height)
+        cls._driver.save_screenshot(output_path)
+        print(f"Saved screenshot to {output_path}")

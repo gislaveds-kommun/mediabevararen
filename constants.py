@@ -1,4 +1,5 @@
 WIDTH_Of_SCREENSHOT = "1920"
+HEIGHT_Of_SCREENSHOT = "1080"
 PATH_TO_IMAGE_TEMP = "image_temp"
 NO_KEYWORDS_TEXT = "Inga Keywords specificerade för denna webbsida"
 NO_DESCRIPTION_TEXT = "Ingen beskrivning specificerad för denna webbsida"
@@ -13,7 +14,7 @@ LINKEDIN_LOGIN_BUTTON = '//button[@aria-label="Logga in"]'
 LINKEDIN_ACCEPT_BUTTON1 = '//button[text()="Acceptera"]'
 LINKEDIN_ACCEPT_BUTTON2 = '//span[text()="Acceptera"]'
 LINKEDIN_REJECT_BUTTON = 'button[aria-label="Avvisa"]'
-FACEBBOK_COOKIE_BANNER = "//span[text()='Tillåt alla cookies']"
+FACEBOOK_COOKIE_BANNER = "//span[text()='Tillåt alla cookies']"
 TIMEOUT_SECONDS = "10"
 
 IO_STRINGS = {
@@ -31,6 +32,6 @@ IO_STRINGS = {
     'new_contract': "Enter your new Contract-file:",
     'exited_program': "Exited the program",
     'welcome': "Welcome to Mediahanteraren",
-    'exit_ctrlc': "Exited the program with ctrl+c",
+    'exit_ctrlc': "Ctrl+c was pressed",
     'goodbye': "Goodbye!"
 }

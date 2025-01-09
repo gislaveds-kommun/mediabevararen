@@ -32,10 +32,6 @@ from urllib.parse import urlparse
 import pandas as pd
 from PIL import Image
 from lxml import etree
-# from selenium import webdriver
-# from selenium.webdriver.chrome.service import Service
-# from webdriver_manager.chrome import ChromeDriverManager
-# from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
@@ -48,6 +44,7 @@ import constants as const
 import config as conf
 from constants import IO_STRINGS as io
 from webdriver_class import WebdriverClass
+from exception import LoginException
 
 
 def convert_png_to_tiff(input_path_png, output_path_tiff):
@@ -140,9 +137,21 @@ def get_webpage_metadata(url):
     return title, keywords, description
 
 
-def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basmetadata):
+def save_pretty_xml_to_file(root, folder_name, xml_file_name):
+    declaration = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    xml_string = declaration + ET.tostring(root, encoding="utf-8", method="xml").decode()
+
+    dom = xml.dom.minidom.parseString(xml_string)
+    formatted_xml = dom.toprettyxml(indent="  ", encoding="UTF-8").decode("UTF-8")
+
+    xml_file_path = f"{folder_name}/{xml_file_name}"
+    with open(xml_file_path, "w", encoding="utf-8") as file:
+        file.write(formatted_xml)
+
+
+def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basemetadata):
     url = url_and_metadata_for_website[0]
-    webbsida = url_and_metadata_for_website[1]
+    website = url_and_metadata_for_website[1]
     root = ET.Element(
         "Leveransobjekt",
         attrib={
@@ -153,55 +162,47 @@ def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, 
     )
 
     # The order of the subelements is critical
-    dokument = ET.SubElement(root, "Dokument")
+    document = ET.SubElement(root, "Dokument")
 
-    ET.SubElement(dokument, "Organisation").text = str(basmetadata['value']['organisation'])
-    ET.SubElement(dokument, "Arkivbildare").text = str(basmetadata['value']['arkivbildare'])
-    ET.SubElement(dokument, "Arkivbildarenhet").text = str(basmetadata['value']['arkivbildarenhet'])
-    ET.SubElement(dokument, "Arkiv").text = str(basmetadata['value']['arkiv'])
-    ET.SubElement(dokument, "Serie").text = str(basmetadata['value']['serie'])
-    ET.SubElement(dokument, "KlassificeringsstrukturText").text = str(basmetadata['value']['klassificeringsstrukturtext'])
+    ET.SubElement(document, "Organisation").text = str(basemetadata['value']['organisation'])
+    ET.SubElement(document, "Arkivbildare").text = str(basemetadata['value']['arkivbildare'])
+    ET.SubElement(document, "Arkivbildarenhet").text = str(basemetadata['value']['arkivbildarenhet'])
+    ET.SubElement(document, "Arkiv").text = str(basemetadata['value']['arkiv'])
+    ET.SubElement(document, "Serie").text = str(basemetadata['value']['serie'])
+    ET.SubElement(document, "KlassificeringsstrukturText").text = str(basemetadata['value']['klassificeringsstrukturtext'])
 
-    process_strukturerat = ET.SubElement(dokument, "ProcessStrukturerat")            
-    ET.SubElement(process_strukturerat, "nivå1").text = str(basmetadata['value']['nivå1'])
-    ET.SubElement(process_strukturerat, "nivå2").text = str(basmetadata['value']['nivå2'])
-    ET.SubElement(process_strukturerat, "nivå3").text = str(basmetadata['value']['nivå3'])
+    process_struct = ET.SubElement(document, "ProcessStrukturerat")            
+    ET.SubElement(process_struct, "nivå1").text = str(basemetadata['value']['nivå1'])
+    ET.SubElement(process_struct, "nivå2").text = str(basemetadata['value']['nivå2'])
+    ET.SubElement(process_struct, "nivå3").text = str(basemetadata['value']['nivå3'])
 
-    ET.SubElement(dokument, "Ursprung").text = str(basmetadata['value']['ursprung'])
-    ET.SubElement(dokument, "Arkiveringsdatum").text = formatted_date
-    ET.SubElement(dokument, "Sekretess").text = str(basmetadata['value']['sekretess'])
-    ET.SubElement(dokument, "Personuppgifter").text = str(basmetadata['value']['personuppgifter'])
-    ET.SubElement(dokument, "Forskningsdata").text = str(basmetadata['value']['forskningsdata'])
-    ET.SubElement(dokument, "Site").text = get_domain_from_url(url)
-    ET.SubElement(dokument, "Webbsida").text = webbsida
-    ET.SubElement(dokument, "Webbadress").text = url
+    ET.SubElement(document, "Ursprung").text = str(basemetadata['value']['ursprung'])
+    ET.SubElement(document, "Arkiveringsdatum").text = formatted_date
+    ET.SubElement(document, "Sekretess").text = str(basemetadata['value']['sekretess'])
+    ET.SubElement(document, "Personuppgifter").text = str(basemetadata['value']['personuppgifter'])
+    ET.SubElement(document, "Forskningsdata").text = str(basemetadata['value']['forskningsdata'])
+    ET.SubElement(document, "Site").text = get_domain_from_url(url)
+    ET.SubElement(document, "Webbsida").text = website
+    ET.SubElement(document, "Webbadress").text = url
+
     title, keywords, description = get_webpage_metadata(url)
-    ET.SubElement(dokument, "WebPageTitle").text = title
-    ET.SubElement(dokument, "WebPageKeywords").text = keywords
-    ET.SubElement(dokument, "WebPageDescription").text = description
-    ET.SubElement(dokument, "WebPageCurrentURL").text = url
-    ET.SubElement(dokument, "Informationsdatum").text = formatted_date
-    ET.SubElement(dokument, "Kommentar").text = str(basmetadata['value']['kommentar'])
+    ET.SubElement(document, "WebPageTitle").text = title
+    ET.SubElement(document, "WebPageKeywords").text = keywords
+    ET.SubElement(document, "WebPageDescription").text = description
+    ET.SubElement(document, "WebPageCurrentURL").text = url
+    ET.SubElement(document, "Informationsdatum").text = formatted_date
+    ET.SubElement(document, "Kommentar").text = str(basemetadata['value']['kommentar'])
 
     ET.SubElement(root, "DokumentFilnamn").text = tiff_image_name
 
-    declaration = '<?xml version="1.0" encoding="UTF-8"?>\n'
-    xml_string = declaration + ET.tostring(root, encoding="utf-8", method="xml").decode()
-
-    dom = xml.dom.minidom.parseString(xml_string)
-
-    formatted_xml = dom.toprettyxml(indent="  ", encoding="UTF-8").decode("UTF-8")
-
-    xml_file_path = folder_name + "/" + xml_file_name
-    with open(xml_file_path, "w", encoding="utf-8") as file:
-        file.write(formatted_xml)
+    save_pretty_xml_to_file(root, folder_name, xml_file_name)
 
 
-def validate_xml(xml_file, xsd_file):
+def validate_xml(xml_file):
     try:
         with open(xml_file, 'rb') as file:
             xml_doc = etree.parse(file, parser=etree.XMLParser(encoding='utf-8'))
-        schema = etree.XMLSchema(file=xsd_file)
+        schema = etree.XMLSchema(file=conf.xsd_file)
         schema.assertValid(xml_doc)
         print("Validation successful.")
         return True
@@ -221,7 +222,6 @@ def login_to_instagram():
 
     driver = WebdriverClass.get_driver()
     WebdriverClass.load_webpage(const.PATH_TO_INSTAGRAM)
-    driver.implicitly_wait(const.TIMEOUT_SECONDS)
 
     try:
         driver.find_element(By.XPATH, const.INSTAGRAM_COOKIE_BANNER).click()
@@ -229,10 +229,14 @@ def login_to_instagram():
     except Exception as e:
         print(f"Error click button cookies: {e}")
 
-    send_input_name("username", username)
-    send_input_name("password", password)
+    try:
+        send_input_name("username", username)
+        send_input_name("password", password)
 
-    driver.find_element(By.XPATH, const.INSTAGRAM_LOGIN_BUTTON).click()
+        driver.find_element(By.XPATH, const.INSTAGRAM_LOGIN_BUTTON).click()
+
+    except Exception as e:
+        print(f"Error on instagram login {e}")
 
 
 def login_to_linkedin():
@@ -240,30 +244,27 @@ def login_to_linkedin():
     password = os.getenv("linkedin_password")
     driver = WebdriverClass.get_driver()
     WebdriverClass.load_webpage(const.PATH_TO_LINKEDIN)
-    driver.implicitly_wait(const.TIMEOUT_SECONDS)
 
     try:
-        accept_button = WebDriverWait(driver, const.TIMEOUT_SECONDS).until(
-            EC.element_to_be_clickable((By.XPATH, const.LINKEDIN_ACCEPT_BUTTON1))
-        )
-        accept_button.click()
+        WebDriverWait(driver, const.TIMEOUT_SECONDS).until(
+            EC.element_to_be_clickable((By.XPATH, const.LINKEDIN_ACCEPT_BUTTON1))).click()
 
     except Exception as e:
         print(f"Error: {e}")
 
-    send_input_id("username", username)
-    send_input_id("password", password)
+    try:
+        send_input_id("username", username)
+        send_input_id("password", password)
 
-    login_button = WebDriverWait(driver, const.TIMEOUT_SECONDS).until(
-        EC.element_to_be_clickable((By.XPATH, const.LINKEDIN_LOGIN_BUTTON))
-    )
-    login_button.click()
+        WebDriverWait(driver, const.TIMEOUT_SECONDS).until(
+            EC.element_to_be_clickable((By.XPATH, const.LINKEDIN_LOGIN_BUTTON))).click()
+
+    except Exception as e:
+        print(f"Error on linkedin login {e}")
 
     try:
-        accept_button = WebDriverWait(driver, const.TIMEOUT_SECONDS).until(
-            EC.element_to_be_clickable((By.XPATH, const.LINKEDIN_ACCEPT_BUTTON2))
-        )
-        accept_button.click()
+        WebDriverWait(driver, const.TIMEOUT_SECONDS).until(
+            EC.element_to_be_clickable((By.XPATH, const.LINKEDIN_ACCEPT_BUTTON2))).click()
 
     except Exception as e:
         print(f"Error: {e}")
@@ -274,17 +275,14 @@ def login_to_facebook():
     password = os.getenv("facebook_password")
     driver = WebdriverClass.get_driver()
     WebdriverClass.load_webpage(const.PATH_TO_FACEBOOK)
-    driver.maximize_window()
-    driver.implicitly_wait(const.TIMEOUT_SECONDS)
 
     try:
         wait = WebDriverWait(driver, const.TIMEOUT_SECONDS)
         cookie_button = wait.until(EC.presence_of_element_located(
-            (By.XPATH, const.FACEBBOK_COOKIE_BANNER)
+            (By.XPATH, const.FACEBOOK_COOKIE_BANNER)
         ))
 
-        actions = ActionChains(driver)
-        actions.move_to_element(cookie_button).click().perform()
+        ActionChains(driver).move_to_element(cookie_button).click().perform()
         print("Cookies consent button clicked successfully using ActionChains!")
 
     except Exception as e:
@@ -302,15 +300,14 @@ def login_to_facebook():
         cookie_button = wait.until(EC.presence_of_element_located(
             (By.XPATH, const.FACEBBOK_COOKIE_BANNER)
         ))
-        actions = ActionChains(driver)
-        actions.move_to_element(cookie_button).click().perform()
+        ActionChains(driver).move_to_element(cookie_button).click().perform()
         print("Cookies consent button clicked successfully using ActionChains!")
 
     except Exception as e:
         print(f"Error clicking the button: {e}")
 
 
-def capture_full_page_screenshot_with_custom_width(output_path, width_of_screenshot, type_of_web_extraction, url):
+def capture_full_page_screenshot_with_custom_width(output_path, type_of_web_extraction, url):
 
     driver = WebdriverClass.get_driver()
     WebdriverClass.load_webpage(url)
@@ -325,58 +322,50 @@ def capture_full_page_screenshot_with_custom_width(output_path, width_of_screens
     match type_of_web_extraction.lower():
         case "gislaved.se":
             try:
-                wait = WebDriverWait(driver, const.TIMEOUT_SECONDS) 
-                wait.until(EC.element_to_be_clickable((By.XPATH, const.GISLAVED_SE_COOKIE_BUTTON))).click()
+                WebDriverWait(driver, const.TIMEOUT_SECONDS).until(
+                    EC.element_to_be_clickable((By.XPATH, const.GISLAVED_SE_COOKIE_BUTTON))).click()
 
             except Exception as e:
                 print(f"Error click button cookies: {e}")
         case "linkedin":
             try:
-                dismiss_button = WebDriverWait(driver, const.TIMEOUT_SECONDS).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, const.LINKEDIN_REJECT_BUTTON))
-                )
-                dismiss_button.click()
+                WebDriverWait(driver, const.TIMEOUT_SECONDS).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, const.LINKEDIN_REJECT_BUTTON))).click()
 
             except Exception as e:
                 print(f"Error: {e}")
         case "instagram":
             try:
-                wait = WebDriverWait(driver, const.TIMEOUT_SECONDS)  
-                element = wait.until(EC.element_to_be_clickable((By.XPATH, const.INSTAGRAM_LOGIN_BANNER)))
-                actions = ActionChains(driver)
-                actions.move_to_element(element).click().perform()
+                ActionChains(driver).move_to_element(WebDriverWait(driver, const.TIMEOUT_SECONDS).until(
+                    EC.element_to_be_clickable((By.XPATH, const.INSTAGRAM_LOGIN_BANNER)))).click().perform()
 
             except Exception as e:
                 print(f"Error click  login button s: {e}")
 
-    driver.implicitly_wait(const.TIMEOUT_SECONDS)
-    page_height = driver.execute_script("return document.documentElement.scrollHeight")
-    driver.set_window_size(width_of_screenshot, page_height)
-    driver.save_screenshot(output_path)
-    print(f"Saved screenshot to {output_path}")
+    WebdriverClass.take_screenshot(output_path)
 
 
-def create_tiff_screenshot(url, folder_name, width_of_screenshot, type_of_web_extraction):
+def create_tiff_screenshot(url, folder_name, type_of_web_extraction):
     filename = create_file_name(url)
     print(f"Processing {filename}")
     output_path_png = "image_temp/" + filename + '.png'
     tiff_image_name = filename + '.tif'
     output_path_tiff = folder_name + "/" + tiff_image_name
 
-    capture_full_page_screenshot_with_custom_width(output_path_png, width_of_screenshot, type_of_web_extraction, url)
+    capture_full_page_screenshot_with_custom_width(output_path_png, type_of_web_extraction, url)
 
     convert_png_to_tiff(output_path_png, output_path_tiff)
 
     return tiff_image_name
 
 
-def create_package_creator_config(basmetadata, folder_name, schema, contract, systemnamn):
-    arkivbildare = str(basmetadata['value']['arkivbildare'])
+def create_package_creator_config(basemetadata, folder_name):
+    arkivbildare = str(basemetadata['value']['arkivbildare'])
     first_part_of_arkivbildare = get_part_of_string(arkivbildare, "(", 0)
     arkivbildare_cleaned = replace_unwanted_chars(first_part_of_arkivbildare, '')
 
-    ursprung = str(basmetadata['value']['ursprung'])
-    systemnamn = systemnamn if systemnamn.strip() else ursprung
+    ursprung = str(basemetadata['value']['ursprung'])
+    systemnamn = conf.systemnamn if conf.systemnamn.strip() else ursprung
     systemnamn_cleaned = replace_unwanted_chars(systemnamn, '')
 
     config_data = [("Agent 1 Namn", arkivbildare),
@@ -386,8 +375,8 @@ def create_package_creator_config(basmetadata, folder_name, schema, contract, sy
                    ("Leverans", "Gislaved-webb-1"),
                    ("Arkivbildare", arkivbildare_cleaned),
                    ("Systemnamn", systemnamn_cleaned),
-                   ("Schema", schema),
-                   ("Contract", contract)]
+                   ("Schema", conf.xsd_file),
+                   ("Contract", conf.contract)]
 
     package_creator_workbook = Workbook()
     package_creator_active_sheet = package_creator_workbook.active
@@ -401,8 +390,8 @@ def create_package_creator_config(basmetadata, folder_name, schema, contract, sy
 def run_web_extraction(type_of_web_extraction):
     pages_as_lists = pd.read_excel(conf.pages_to_crawl_file, sheet_name=0).fillna("").values.tolist()
 
-    basmetadata = pd.read_excel(conf.basmetadata_file, sheet_name=0, index_col=0)
-    basmetadata = prepare_and_clean_columns_and_index(basmetadata)
+    basemetadata = pd.read_excel(conf.basemetadata_file, sheet_name=0, index_col=0)
+    basemetadata = prepare_and_clean_columns_and_index(basemetadata)
 
     today = datetime.now()
     formatted_date = today.strftime('%Y-%m-%d')
@@ -426,34 +415,32 @@ def run_web_extraction(type_of_web_extraction):
     for url_and_metadata_for_website in pages_as_lists:
         if xml_valid:
             url = url_and_metadata_for_website[0]
-            tiff_image_name = create_tiff_screenshot(url, folder_name, const.WIDTH_Of_SCREENSHOT, type_of_web_extraction)
-            print(f"converted to tif {tiff_image_name}")
+            tiff_image_name = create_tiff_screenshot(url, folder_name, type_of_web_extraction)
+            print(f"converted to tif: {tiff_image_name}")
 
             xml_file_name = get_part_of_string(tiff_image_name, ".", 0) + ".xml"
-            create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basmetadata)
+            create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basemetadata)
+            print(f"Created XML file: {xml_file_name}")
 
-            print(xml_file_name)
             xml_file_path = folder_name + "/" + xml_file_name
-            xml_valid = validate_xml(xml_file_path, conf.xsd_file)
+            xml_valid = validate_xml(xml_file_path)
 
         else:
-            print(f"xml not valid {xml_file_path}")
-    WebdriverClass.quit_driver()
-    create_package_creator_config(basmetadata, folder_name, conf.xsd_file, conf.contract, conf.systemnamn)
+            print(f"xml not valid: {xml_file_path}")
+
+    create_package_creator_config(basemetadata, folder_name)
 
 
 def case_four_systemnamn():
     systemnamn_message = f"Your current Systemnamn is: {conf.systemnamn}"
-    empty_systemnamn = io['empty_systemnamn']
-
     if not conf.systemnamn:
-        systemnamn_message = empty_systemnamn
+        systemnamn_message = io['empty_systemnamn']
 
     print(systemnamn_message)
     print("************************************")
     print("You can choose one of the following actions:")
     print('1: to change Systemnamn')
-    print('2: to clear it to choose the basmetadata "URSPRUNG" instead')
+    print('2: to clear it to choose the basemetadata "URSPRUNG" instead')
     print('Type any other key to exit this menu')
     print("************************************")
 
@@ -461,9 +448,10 @@ def case_four_systemnamn():
     match answer_systemnamn_choice.lower():
         case "1":
             conf.systemnamn = input(io['question_systemnamn'])
-        case "2": 
+            print(f"Your current Systemnamn is now: {conf.systemnamn}")
+        case "2":
             conf.systemnamn = ""
-            print(empty_systemnamn)
+            print(io['empty_systemnamn'])
         case _:
             print(io['exit_systemnamn'])
 
@@ -523,15 +511,19 @@ def case_run():
         new_pages_to_crawl = choose_new_file_input('Pages-to-crawl-file')
         conf.pages_to_crawl_file = new_pages_to_crawl if new_pages_to_crawl else conf.pages_to_crawl_file
 
-    print(f"\nYour current basmetadata-file is: {conf.basmetadata_file}")
-    answer_change_basmetadata = input(io['question_change_file'])
-    if answer_change_basmetadata.lower() == "y":
-        new_basmetadata = choose_new_file_input('Basmetadata-file')
-        conf.basmetadata_file = new_basmetadata if new_basmetadata else conf.basmetadata_file
+    print(f"\nYour current basemetadata-file is: {conf.basemetadata_file}")
+    answer_change_basemetadata = input(io['question_change_file'])
+    if answer_change_basemetadata.lower() == "y":
+        new_basemetadata = choose_new_file_input('basemetadata-file')
+        conf.basemetadata_file = new_basemetadata if new_basemetadata else conf.basemetadata_file
 
-    print(io['run_web_extraction'])
-    run_web_extraction(type_of_web_extraction)
-    print(io['extraction completed'])
+    try:
+        print(io['run_web_extraction'])
+        run_web_extraction(type_of_web_extraction)
+        WebdriverClass.quit_driver()
+        print(io['extraction completed'])
+    except LoginException as e:
+        print(f"Login failed: {e}")
 
 
 def case_one_headless():
