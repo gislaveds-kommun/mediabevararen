@@ -95,13 +95,13 @@ def prepare_and_clean_columns_and_index(data):
 
 
 def send_input_name(name, value):
-    name_field = WebdriverClass.get_driver().find_element(By.NAME, name)
+    name_field = WebdriverClass.find_element_by_name(name)
     name_field.clear()
     name_field.send_keys(value)
 
 
 def send_input_id(name, value, keys_return=False):
-    name_field = WebdriverClass.get_driver().find_element(By.ID, name)
+    name_field = WebdriverClass.find_element_by_id(name)
     name_field.clear()
     name_field.send_keys(value)
     if keys_return:
@@ -109,12 +109,11 @@ def send_input_id(name, value, keys_return=False):
 
 
 def get_webpage_metadata(url):
-    driver = WebdriverClass.get_driver()
-    driver.get(url)
-    title = driver.title
+    WebdriverClass.load_webpage(url)
+    title = WebdriverClass.get_title()
     try:
-        all_meta_tags = driver.find_elements(By.TAG_NAME, "meta")
-
+        all_meta_tags = WebdriverClass.find_element_by_tag_name("meta")
+        
         generator = (tag.get_attribute("content") for tag in all_meta_tags if has_keywords_with_content(tag))
 
         keywords = next(generator, const.NO_KEYWORDS_TEXT)
@@ -124,7 +123,7 @@ def get_webpage_metadata(url):
         print("Error occurred trying to get Keywords data: :", e)
 
     try:
-        all_meta_tags = driver.find_elements(By.TAG_NAME, "meta")
+        all_meta_tags = WebdriverClass.find_element_by_tag_name("meta")
 
         generator = (tag.get_attribute("content") for tag in all_meta_tags if has_description_with_content(tag))
 
@@ -220,11 +219,10 @@ def login_to_instagram():
     username = os.getenv("instagram_user")
     password = os.getenv("instagram_password")
 
-    driver = WebdriverClass.get_driver()
     WebdriverClass.load_webpage(const.PATH_TO_INSTAGRAM)
 
     try:
-        driver.find_element(By.XPATH, const.INSTAGRAM_COOKIE_BANNER).click()
+        WebdriverClass.find_element_by_xpath(const.INSTAGRAM_COOKIE_BANNER).click()
 
     except Exception as e:
         print(f"Error click button cookies: {e}")
@@ -233,10 +231,11 @@ def login_to_instagram():
         send_input_name("username", username)
         send_input_name("password", password)
 
-        driver.find_element(By.XPATH, const.INSTAGRAM_LOGIN_BUTTON).click()
+        WebdriverClass.find_element_by_xpath(const.INSTAGRAM_LOGIN_BUTTON).click()
 
     except Exception as e:
         print(f"Error on instagram login {e}")
+        raise LoginException
 
 
 def login_to_linkedin():
@@ -261,6 +260,7 @@ def login_to_linkedin():
 
     except Exception as e:
         print(f"Error on linkedin login {e}")
+        raise LoginException
 
     try:
         WebDriverWait(driver, const.TIMEOUT_SECONDS).until(
@@ -294,11 +294,12 @@ def login_to_facebook():
 
     except Exception as e:
         print(f"Error: {e}")
+        raise LoginException
 
     try:
         wait = WebDriverWait(driver, const.TIMEOUT_SECONDS)
         cookie_button = wait.until(EC.presence_of_element_located(
-            (By.XPATH, const.FACEBBOK_COOKIE_BANNER)
+            (By.XPATH, const.FACEBOOK_COOKIE_BANNER)
         ))
         ActionChains(driver).move_to_element(cookie_button).click().perform()
         print("Cookies consent button clicked successfully using ActionChains!")
@@ -416,7 +417,7 @@ def run_web_extraction(type_of_web_extraction):
         if xml_valid:
             url = url_and_metadata_for_website[0]
             tiff_image_name = create_tiff_screenshot(url, folder_name, type_of_web_extraction)
-            print(f"converted to tif: {tiff_image_name}")
+            print(f"Converted to tiff: {tiff_image_name}")
 
             xml_file_name = get_part_of_string(tiff_image_name, ".", 0) + ".xml"
             create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basemetadata)
@@ -520,10 +521,11 @@ def case_run():
     try:
         print(io['run_web_extraction'])
         run_web_extraction(type_of_web_extraction)
-        WebdriverClass.quit_driver()
         print(io['extraction completed'])
     except LoginException as e:
         print(f"Login failed: {e}")
+    finally:
+        WebdriverClass.quit_driver()
 
 
 def case_one_headless():

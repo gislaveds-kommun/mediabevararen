@@ -2,6 +2,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
 
 import constants as const
 import config as conf
@@ -55,3 +56,23 @@ class WebdriverClass:
         cls._driver.set_window_size(const.WIDTH_Of_SCREENSHOT, page_height)
         cls._driver.save_screenshot(output_path)
         print(f"Saved screenshot to {output_path}")
+
+    @classmethod
+    def find_element_by_id(cls, name):
+        return cls.get_driver().find_element(By.ID, name)
+
+    @classmethod
+    def find_element_by_name(cls, name):
+        return cls.get_driver().find_element(By.NAME, name)
+
+    @classmethod
+    def find_element_by_tag_name(cls, tag_name):
+        return cls.get_driver().find_elements(By.TAG_NAME, tag_name)
+
+    @classmethod
+    def find_element_by_xpath(cls, xpath):
+        return cls.get_driver().find_element(By.XPATH, xpath)
+
+    @classmethod
+    def get_title(cls):
+        return cls.get_driver().title
