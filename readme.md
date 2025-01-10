@@ -55,24 +55,24 @@ See https://pip.pypa.io/en/stable/installation/ for help installing pip.
 >
 >
 # Configuration
->There are already sample data and config settings that works out of the box script exept the **.env** that
+>There are already sample data and config settings that works out of the box script except the **.env** that
 is needed for users and passwords for social media accounts
 >
->Settings are in the files .env , config.py and constants.py 
+>Settings are in the files .env , config.py and constants.py, the files are explaind further down. 
 >
 >There are two excel files with sample data and you can change these while the program is running as long as you use the same 
-structure as the sample files. The structur is explain down below.
+structure as the sample files. The structur is explain further down.
 >
 ## The three settings files will be explaind here: ###
 
 ### Credentials in .env 
->create a .evn file with this content below, and put it in the main folder of the program.
+>Create a .evn file with this content below, and put it in the main folder of the program.
 >
 >**instagram_user** = "your instagram user"
 >
 >**instagram_password** = "your instagram password"
 >
->**linkedin_user** = "your linkin user"
+>**linkedin_user** = "your linkedin user"
 >
 >**linkedin_password** = "your linkedin password"
 >
@@ -90,7 +90,7 @@ structure as the sample files. The structur is explain down below.
 > 
 >There can be situations when these settings need to be changed.
 >
->exampel of change: 
+>Exampel of change: 
 >
 >Facbook cookie banner has change on the website
 >FACEBOOK_COOKIE_BANNER = "//span[text()='Tillåt alla cookies']"
@@ -100,7 +100,7 @@ structure as the sample files. The structur is explain down below.
 ### Sample exce file for pages ###
 >default_sample_pages.xlsx
 >
->The following is the two columns of the pages excel. The columns need to be exaktly like this.
+>The following are the two columns of the pages excel. The columns need to be exaktly like this.
 >
 >**Webbadress	Webbsida**
 >
@@ -111,7 +111,7 @@ structure as the sample files. The structur is explain down below.
 >
 >default_sample_metadata.xlsx
 >
->The following is the first column of the excel with basmetadata. 
+>Further down is a list of the rows in the first column of the excel with basmetadata. 
 >
 >The second column is for the values.
 >
@@ -119,9 +119,10 @@ structure as the sample files. The structur is explain down below.
 >
 >The values need also need to match the validation criteria in the default xsd file
 >
->You can change the defult xsd file while the program is running but the the metadata excel indata has to match. 
+>You can change the defult xsd file while the program is running but then the metadata excel indata has to match the new xsd. 
 >
 >***Default sample metadata colums***
+>
 >Organisation
 >
 >Arkivbildare
