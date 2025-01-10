@@ -32,11 +32,6 @@ from urllib.parse import urlparse
 import pandas as pd
 from PIL import Image
 from lxml import etree
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.common.keys import Keys
 from openpyxl import Workbook
 from dotenv import load_dotenv
 
@@ -69,20 +64,6 @@ def create_file_name(url):
     return unique_filename_date_time
 
 
-def tag_has_key_value(tag, key, value=None):
-    if value:
-        return tag.get_attribute(key) and tag.get_attribute(key).lower().strip() == value
-    return tag.get_attribute(key) and tag.get_attribute(key).strip()
-
-
-def has_keywords_with_content(tag):
-    return tag_has_key_value(tag, "name", "keywords") and tag_has_key_value(tag, "content")
-
-
-def has_description_with_content(tag):
-    return tag_has_key_value(tag, "name", "description") and tag_has_key_value(tag, "content")
-
-
 def get_domain_from_url(url):
     return urlparse(url).netloc
 
@@ -92,48 +73,6 @@ def prepare_and_clean_columns_and_index(data):
     data.index = data.index.str.strip().str.lower()
 
     return data
-
-
-def send_input_name(name, value):
-    name_field = WebdriverClass.find_element_by_name(name)
-    name_field.clear()
-    name_field.send_keys(value)
-
-
-def send_input_id(name, value, keys_return=False):
-    name_field = WebdriverClass.find_element_by_id(name)
-    name_field.clear()
-    name_field.send_keys(value)
-    if keys_return:
-        name_field.send_keys(Keys.RETURN)
-
-
-def get_webpage_metadata(url):
-    WebdriverClass.load_webpage(url)
-    title = WebdriverClass.get_title()
-    try:
-        all_meta_tags = WebdriverClass.find_element_by_tag_name("meta")
-        
-        generator = (tag.get_attribute("content") for tag in all_meta_tags if has_keywords_with_content(tag))
-
-        keywords = next(generator, const.NO_KEYWORDS_TEXT)
-
-    except Exception as e:
-        keywords = const.NO_KEYWORDS_TEXT
-        print("Error occurred trying to get Keywords data: :", e)
-
-    try:
-        all_meta_tags = WebdriverClass.find_element_by_tag_name("meta")
-
-        generator = (tag.get_attribute("content") for tag in all_meta_tags if has_description_with_content(tag))
-
-        description = next(generator, const.NO_DESCRIPTION_TEXT)
-
-    except Exception as e:
-        description = const.NO_DESCRIPTION_TEXT
-        print("Error occurred trying to get description data: :", e)
-
-    return title, keywords, description
 
 
 def save_pretty_xml_to_file(root, folder_name, xml_file_name):
@@ -184,7 +123,7 @@ def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, 
     ET.SubElement(document, "Webbsida").text = website
     ET.SubElement(document, "Webbadress").text = url
 
-    title, keywords, description = get_webpage_metadata(url)
+    title, keywords, description = WebdriverClass.get_webpage_metadata(url)
     ET.SubElement(document, "WebPageTitle").text = title
     ET.SubElement(document, "WebPageKeywords").text = keywords
     ET.SubElement(document, "WebPageDescription").text = description
@@ -215,137 +154,6 @@ def validate_xml(xml_file):
     return False
 
 
-def login_to_instagram():
-    username = os.getenv("instagram_user")
-    password = os.getenv("instagram_password")
-
-    WebdriverClass.load_webpage(const.PATH_TO_INSTAGRAM)
-
-    try:
-        WebdriverClass.find_element_by_xpath(const.INSTAGRAM_COOKIE_BANNER).click()
-
-    except Exception as e:
-        print(f"Error click button cookies: {e}")
-
-    try:
-        send_input_name("username", username)
-        send_input_name("password", password)
-
-        WebdriverClass.find_element_by_xpath(const.INSTAGRAM_LOGIN_BUTTON).click()
-
-    except Exception as e:
-        print(f"Error on instagram login {e}")
-        raise LoginException
-
-
-def login_to_linkedin():
-    username = os.getenv("linkedin_user")
-    password = os.getenv("linkedin_password")
-    driver = WebdriverClass.get_driver()
-    WebdriverClass.load_webpage(const.PATH_TO_LINKEDIN)
-
-    try:
-        WebDriverWait(driver, const.TIMEOUT_SECONDS).until(
-            EC.element_to_be_clickable((By.XPATH, const.LINKEDIN_ACCEPT_BUTTON1))).click()
-
-    except Exception as e:
-        print(f"Error: {e}")
-
-    try:
-        send_input_id("username", username)
-        send_input_id("password", password)
-
-        WebDriverWait(driver, const.TIMEOUT_SECONDS).until(
-            EC.element_to_be_clickable((By.XPATH, const.LINKEDIN_LOGIN_BUTTON))).click()
-
-    except Exception as e:
-        print(f"Error on linkedin login {e}")
-        raise LoginException
-
-    try:
-        WebDriverWait(driver, const.TIMEOUT_SECONDS).until(
-            EC.element_to_be_clickable((By.XPATH, const.LINKEDIN_ACCEPT_BUTTON2))).click()
-
-    except Exception as e:
-        print(f"Error: {e}")
-
-
-def login_to_facebook():
-    username = os.getenv("facebook_user")
-    password = os.getenv("facebook_password")
-    driver = WebdriverClass.get_driver()
-    WebdriverClass.load_webpage(const.PATH_TO_FACEBOOK)
-
-    try:
-        wait = WebDriverWait(driver, const.TIMEOUT_SECONDS)
-        cookie_button = wait.until(EC.presence_of_element_located(
-            (By.XPATH, const.FACEBOOK_COOKIE_BANNER)
-        ))
-
-        ActionChains(driver).move_to_element(cookie_button).click().perform()
-        print("Cookies consent button clicked successfully using ActionChains!")
-
-    except Exception as e:
-        print(f"Error clicking the button: {e}")
-
-    try:
-        send_input_id("email", username)
-        send_input_id("pass", password, True)
-
-    except Exception as e:
-        print(f"Error: {e}")
-        raise LoginException
-
-    try:
-        wait = WebDriverWait(driver, const.TIMEOUT_SECONDS)
-        cookie_button = wait.until(EC.presence_of_element_located(
-            (By.XPATH, const.FACEBOOK_COOKIE_BANNER)
-        ))
-        ActionChains(driver).move_to_element(cookie_button).click().perform()
-        print("Cookies consent button clicked successfully using ActionChains!")
-
-    except Exception as e:
-        print(f"Error clicking the button: {e}")
-
-
-def capture_full_page_screenshot_with_custom_width(output_path, type_of_web_extraction, url):
-
-    driver = WebdriverClass.get_driver()
-    WebdriverClass.load_webpage(url)
-    try:
-        WebDriverWait(driver, const.TIMEOUT_SECONDS).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "body"))
-        )
-
-    except Exception as e:
-        print(f"Error during page load: {e}")
-
-    match type_of_web_extraction.lower():
-        case "gislaved.se":
-            try:
-                WebDriverWait(driver, const.TIMEOUT_SECONDS).until(
-                    EC.element_to_be_clickable((By.XPATH, const.GISLAVED_SE_COOKIE_BUTTON))).click()
-
-            except Exception as e:
-                print(f"Error click button cookies: {e}")
-        case "linkedin":
-            try:
-                WebDriverWait(driver, const.TIMEOUT_SECONDS).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, const.LINKEDIN_REJECT_BUTTON))).click()
-
-            except Exception as e:
-                print(f"Error: {e}")
-        case "instagram":
-            try:
-                ActionChains(driver).move_to_element(WebDriverWait(driver, const.TIMEOUT_SECONDS).until(
-                    EC.element_to_be_clickable((By.XPATH, const.INSTAGRAM_LOGIN_BANNER)))).click().perform()
-
-            except Exception as e:
-                print(f"Error click  login button s: {e}")
-
-    WebdriverClass.take_screenshot(output_path)
-
-
 def create_tiff_screenshot(url, folder_name, type_of_web_extraction):
     filename = create_file_name(url)
     print(f"Processing {filename}")
@@ -353,7 +161,7 @@ def create_tiff_screenshot(url, folder_name, type_of_web_extraction):
     tiff_image_name = filename + '.tif'
     output_path_tiff = folder_name + "/" + tiff_image_name
 
-    capture_full_page_screenshot_with_custom_width(output_path_png, type_of_web_extraction, url)
+    WebdriverClass.capture_full_page_screenshot_with_custom_width(output_path_png, type_of_web_extraction, url)
 
     convert_png_to_tiff(output_path_png, output_path_tiff)
 
@@ -406,11 +214,11 @@ def run_web_extraction(type_of_web_extraction):
 
     match type_of_web_extraction.lower():
         case "facebook":
-            login_to_facebook()
+            WebdriverClass.login_to_facebook()
         case "linkedin":
-            login_to_linkedin()
+            WebdriverClass.login_to_linkedin()
         case "instagram":
-            login_to_instagram()
+            WebdriverClass.login_to_instagram()
 
     xml_valid = True
     for url_and_metadata_for_website in pages_as_lists:
