@@ -28,19 +28,33 @@ Install them using pip by typing the following in the terminal.
  
 See https://pip.pypa.io/en/stable/installation/ for help installing pip.
  
-```python -m pip install Pillow```
+```
+python -m pip install Pillow 
+```
 
-```python -m pip install pandas```
+```
+python -m pip install pandas
+```
 
-```python -m pip install lxml```
+```
+python -m pip install lxml
+```
 
-```python -m pip install selenium```
+```
+python -m pip install selenium
+```
 
-```python -m pip install webdriver-manager```
+```
+python -m pip install webdriver-manager
+```
 
-```python -m pip install openpyxl```
+```
+python -m pip install openpyxl
+```
 
-```python -m pip pip install python-dotenv```
+```
+python -m pip pip install python-dotenv
+```
 
 # Usage
 In the **configuration** section below you can see what configuration is needed.
