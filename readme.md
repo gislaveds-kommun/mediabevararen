@@ -63,7 +63,9 @@ In order to start the program in command line you navigate to the folder with th
 
 then write the command: 
  
-```python3 .\archiving-of-web-and-social-media.py```
+```
+python3 .\archiving-of-web-and-social-media.py
+```
 
 In the command line menu in the started program you can change many settings and input data and then run the webextraction.
 
