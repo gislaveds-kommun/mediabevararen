@@ -97,7 +97,7 @@ structure as the sample files. The structur is explain further down.
 >
 
 ## The struture of the input data excel files is exlained here ###
-### Sample exce file for pages ###
+### Sample excel file for pages ###
 >default_sample_pages.xlsx
 >
 >The following are the two columns of the pages excel. The columns need to be exaktly like this.
@@ -117,7 +117,7 @@ structure as the sample files. The structur is explain further down.
 >
 >The first coulmn needs to be exactly like the list below to match the deafault xsd file. 
 >
->The values need also need to match the validation criteria in the default xsd file
+>The values also need to match the validation criteria in the default xsd file
 >
 >You can change the defult xsd file while the program is running but then the metadata excel indata has to match the new xsd. 
 >
