@@ -110,7 +110,7 @@ Example of change:
 
 The current Facebook cookie banner makes the constant look like this
 
-FACEBOOK_COOKIE_BANNER = "//span[text()='Tillåt alla cookies']"
+>FACEBOOK_COOKIE_BANNER = "//span[text()='Tillåt alla cookies']"
 
 If the banner is changed, the constant might also need to be modified accordingly.
 
@@ -119,9 +119,9 @@ If the banner is changed, the constant might also need to be modified accordingl
 
 The excel file default_sample_pages.xlsx needs to have the following information:
 
-The first column named **Webbadress** containing the url to be crawled
+The first column named **Webbadress** containing the url to be crawled.
 
-The second column named **Webbsida** containing a short description of the url and the program puts it into the FGS node webbsida.
+The second column named **Webbsida** containing a short description of the url. The program puts it into the FGS node webbsida.
 
 ### Sample excel file for basemetadata ###
 
@@ -130,36 +130,24 @@ The excel file default_sample_metadata.xlsx contains two columns - the first one
 The first coulmn needs to be exactly like the list below to match the default xsd file. 
 
 ***Default sample metadata rows***
->-Organisation
->
->-Arkivbildare
->
->-Arkivbildarenhet
->
->-Arkiv
->
->-Serie
->
->-Klassificeringsstruktur
->
->-nivå1
->
->-nivå2
->
->-nivå3
->
->-Ursprung
->
->-Sekretess
->
->-Personuppgifter
->
->-Forskningsdata
->
->-Kommentar
+
+- Organisation
+- Arkivbildare
+- Arkivbildarenhet 
+- Arkiv
+- Serie
+- Klassificeringsstruktur
+- nivå1
+- nivå2
+- nivå3
+- Ursprung
+- Sekretess
+- Personuppgifter
+- Forskningsdata
+- Kommentar
 
 
-The values in the second column need to match the validation criteria in the default xsd file
+The values in the second column need to match the validation criteria in the default xsd file.
 
 You can change the default xsd file while the program is running but then the metadata excel indata has to match the new xsd. 
 

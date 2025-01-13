@@ -35,8 +35,8 @@ from lxml import etree
 from openpyxl import Workbook
 from dotenv import load_dotenv
 
-import constants as const
 import config as conf
+from constants import PATH_TO_IMAGE_TEMP
 from constants import IO_STRINGS as io
 from webdriver_class import WebdriverClass
 from exception import LoginException
@@ -209,8 +209,8 @@ def run_web_extraction(type_of_web_extraction):
     folder_name = "files for package creator " + formatted_date_time
     os.mkdir(folder_name)
 
-    if not os.path.isdir(const.PATH_TO_IMAGE_TEMP):
-        os.mkdir(const.PATH_TO_IMAGE_TEMP)
+    if not os.path.isdir(PATH_TO_IMAGE_TEMP):
+        os.mkdir(PATH_TO_IMAGE_TEMP)
 
     match type_of_web_extraction.lower():
         case "facebook":

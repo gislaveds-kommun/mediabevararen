@@ -58,10 +58,11 @@ class WebdriverClass:
 
     @classmethod
     def take_screenshot(cls, output_path):
-        cls._driver.implicitly_wait(const.TIMEOUT_SECONDS)
+        driver = cls.get_driver()
+        driver.implicitly_wait(const.TIMEOUT_SECONDS)
         page_height = cls._driver.execute_script("return document.documentElement.scrollHeight")
-        cls._driver.set_window_size(const.WIDTH_Of_SCREENSHOT, page_height)
-        cls._driver.save_screenshot(output_path)
+        driver.set_window_size(const.WIDTH_Of_SCREENSHOT, page_height)
+        driver.save_screenshot(output_path)
         print(f"Saved screenshot to {output_path}")
 
     @classmethod
@@ -86,13 +87,13 @@ class WebdriverClass:
 
     @classmethod
     def send_input_name(cls, name, value):
-        name_field = cls.get_driver().find_element(By.NAME, name)
+        name_field = cls.find_element_by_name(name)
         name_field.clear()
         name_field.send_keys(value)
 
     @classmethod
     def send_input_id(cls, name, value, keys_return=False):
-        name_field = cls.get_driver().find_element(By.ID, name)
+        name_field = cls.find_element_by_id(name)
         name_field.clear()
         name_field.send_keys(value)
         if keys_return:
