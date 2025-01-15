@@ -14,9 +14,6 @@ from selenium.webdriver.common.action_chains import ActionChains
 import constants as const
 from exception import LoginException
 
-with open("config.json", "r") as f:
-    config = json.load(f)
-
 
 class WebdriverClass:
     _driver = None
@@ -38,6 +35,8 @@ class WebdriverClass:
 
     @staticmethod
     def get_options():
+        with open("config.json", "r") as f:
+            config = json.load(f)
         options = Options()
         options.add_argument(f"--window-size={const.WIDTH_Of_SCREENSHOT},{const.HEIGHT_Of_SCREENSHOT}")
         options.add_argument("--disable-gpu")

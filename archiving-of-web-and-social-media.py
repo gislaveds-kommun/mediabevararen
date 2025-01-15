@@ -369,7 +369,10 @@ def exit_program():
 def start_program():
     print(io['welcome'])
     exit = False
+
     while not exit:
+        with open("config.json", "w") as f:
+            json.dump(config, f, indent=4)
         print("************************************")
         print("You can choose one of the following actions:")
         print("'Exit' or ctrl+c to quit at any time.")
