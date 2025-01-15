@@ -351,7 +351,7 @@ def case_two_xsd():
     answer_change_xsd = input(io['question_change_file'])
     if answer_change_xsd.lower() == "y":
         new_xsd_file = choose_new_file_input('XSD-file')
-        config['pages_to_crawl_file'] = new_xsd_file if new_xsd_file else config['xsd_file']
+        config['xsd_file'] = new_xsd_file if new_xsd_file else config['xsd_file']
 
 
 def case_three_contract():
@@ -373,6 +373,7 @@ def start_program():
     while not exit:
         with open("config.json", "w") as f:
             json.dump(config, f, indent=4)
+
         print("************************************")
         print("You can choose one of the following actions:")
         print("'Exit' or ctrl+c to quit at any time.")
@@ -382,6 +383,7 @@ def start_program():
         print("3: to change Contract-file")
         print("4: to change Systemnamn")
         print("************************************")
+
         user_input = input(io['question_choice'])
 
         match user_input.lower():
