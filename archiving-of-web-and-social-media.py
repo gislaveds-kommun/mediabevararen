@@ -20,6 +20,7 @@ Created on Thu Aug 29 16:19:39 2024
 
 """
 
+import json
 import os
 import sys
 import re
@@ -35,9 +36,8 @@ from lxml import etree
 from openpyxl import Workbook
 from dotenv import load_dotenv
 
-import config as conf
 from constants import PATH_TO_IMAGE_TEMP
-from constants import IO_STRINGS as io
+from constants import CLI_STRINGS as io
 from webdriver_class import WebdriverClass
 from exception import LoginException
 
@@ -145,7 +145,7 @@ def is_valid_xml(xml_file):
     try:
         with open(xml_file, 'rb') as file:
             xml_doc = etree.parse(file, parser=etree.XMLParser(encoding='utf-8'))
-        schema = etree.XMLSchema(file=conf.xsd_file)
+        schema = etree.XMLSchema(file=config['xsd_file'])
         schema.assertValid(xml_doc)
         return True
 
@@ -178,7 +178,7 @@ def create_package_creator_config(basemetadata, folder_name):
     arkivbildare_cleaned = replace_unwanted_chars(first_part_of_arkivbildare, '')
 
     ursprung = str(basemetadata['value']['ursprung'])
-    systemnamn = conf.systemnamn if conf.systemnamn.strip() else ursprung
+    systemnamn = config['systemnamn'] if config['systemnamn'].strip() else ursprung
     systemnamn_cleaned = replace_unwanted_chars(systemnamn, '')
 
     config_data = [("Agent 1 Namn", arkivbildare),
@@ -188,8 +188,8 @@ def create_package_creator_config(basemetadata, folder_name):
                    ("Leverans", "Gislaved-webb-1"),
                    ("Arkivbildare", arkivbildare_cleaned),
                    ("Systemnamn", systemnamn_cleaned),
-                   ("Schema", conf.xsd_file),
-                   ("Contract", conf.contract)]
+                   ("Schema", config['xsd_file']),
+                   ("Contract", config['contract'])]
 
     package_creator_workbook = Workbook()
     package_creator_active_sheet = package_creator_workbook.active
@@ -201,9 +201,9 @@ def create_package_creator_config(basemetadata, folder_name):
 
 
 def run_web_extraction(type_of_web_extraction):
-    pages_as_lists = pd.read_excel(conf.pages_to_crawl_file, sheet_name=0).fillna("").values.tolist()
+    pages_as_lists = pd.read_excel(config['pages_to_crawl_file'], sheet_name=0).fillna("").values.tolist()
 
-    basemetadata = pd.read_excel(conf.basemetadata_file, sheet_name=0, index_col=0)
+    basemetadata = pd.read_excel(config['basemetadata_file'], sheet_name=0, index_col=0)
     basemetadata = prepare_and_clean_columns_and_index(basemetadata)
 
     today = datetime.now()
@@ -246,8 +246,8 @@ def run_web_extraction(type_of_web_extraction):
 
 
 def case_four_systemnamn():
-    systemnamn_message = f"Your current Systemnamn is: {conf.systemnamn}"
-    if not conf.systemnamn:
+    systemnamn_message = f"Your current Systemnamn is: {config['systemnamn']}"
+    if not config['systemnamn']:
         systemnamn_message = io['empty_systemnamn']
 
     print(systemnamn_message)
@@ -261,10 +261,10 @@ def case_four_systemnamn():
     answer_systemnamn_choice = input(io['question_choice'])
     match answer_systemnamn_choice.lower():
         case "1":
-            conf.systemnamn = input(io['question_systemnamn'])
-            print(f"Your current Systemnamn is now: {conf.systemnamn}")
+            config['systemnamn'] = input(io['question_systemnamn'])
+            print(f"Your current Systemnamn is now: {config['systemnamn']}")
         case "2":
-            conf.systemnamn = ""
+            config['systemnamn'] = ""
             print(io['empty_systemnamn'])
         case _:
             print(io['exit_systemnamn'])
@@ -319,17 +319,17 @@ def case_run():
 
     type_of_web_extraction = get_web_extraction_choice()
 
-    print(f"\nYour current 'pages-to-crawl-file' is: {conf.pages_to_crawl_file}")
+    print(f"\nYour current 'pages-to-crawl-file' is: {config['pages_to_crawl_file']}")
     answer_change_pages_to_crawl = input(io['question_change_file'])
     if answer_change_pages_to_crawl.lower() == "y":
         new_pages_to_crawl = choose_new_file_input('Pages-to-crawl-file')
-        conf.pages_to_crawl_file = new_pages_to_crawl if new_pages_to_crawl else conf.pages_to_crawl_file
+        config['pages_to_crawl_file'] = new_pages_to_crawl if new_pages_to_crawl else config['pages_to_crawl_file']
 
-    print(f"\nYour current basemetadata-file is: {conf.basemetadata_file}")
+    print(f"\nYour current basemetadata-file is: {config['basemetadata_file']}")
     answer_change_basemetadata = input(io['question_change_file'])
     if answer_change_basemetadata.lower() == "y":
         new_basemetadata = choose_new_file_input('basemetadata-file')
-        conf.basemetadata_file = new_basemetadata if new_basemetadata else conf.basemetadata_file
+        config['basemetadata_file'] = new_basemetadata if new_basemetadata else config['basemetadata_file']
 
     try:
         print(io['run_web_extraction'])
@@ -342,22 +342,22 @@ def case_run():
 
 
 def case_one_headless():
-    conf.headless_for_full_height = not conf.headless_for_full_height
-    print(f"Headless is set to {conf.headless_for_full_height}")
+    config['headless_for_full_height'] = not config['headless_for_full_height']
+    print(f"Headless is set to {config['headless_for_full_height']}")
 
 
 def case_two_xsd():
-    print(f"\nYour current 'XSD-file' is: {conf.xsd_file}")
+    print(f"\nYour current 'XSD-file' is: {config['xsd_file']}")
     answer_change_xsd = input(io['question_change_file'])
     if answer_change_xsd.lower() == "y":
         new_xsd_file = choose_new_file_input('XSD-file')
-        conf.pages_to_crawl_file = new_xsd_file if new_xsd_file else conf.xsd_file
+        config['pages_to_crawl_file'] = new_xsd_file if new_xsd_file else config['xsd_file']
 
 
 def case_three_contract():
-    if conf.contract != "":
-        print(f"Your current Contract-file is:  {conf.contract}")
-    conf.contract = input(io['new_contract'])
+    if config['contract'] != "":
+        print(f"Your current Contract-file is:  {config['contract']}")
+    config['contract'] = input(io['new_contract'])
 
 
 def exit_program():
@@ -399,6 +399,9 @@ def start_program():
 
 
 if __name__ == "__main__":
+
+    with open("config.json", "r") as f:
+        config = json.load(f)
 
     load_dotenv()
     try:
