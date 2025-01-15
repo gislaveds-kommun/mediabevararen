@@ -51,8 +51,13 @@ def replace_unwanted_chars(filename, replacement):
     return re.sub('[^a-zA-Z]', replacement, filename)
 
 
-def get_part_of_string(input_string, split_by, part):
-    return input_string.split(split_by)[part]
+def get_part_of_string(input_string, split_by, index):
+    if not split_by:
+        raise ValueError("split_by cannot be empty.")
+    try:
+        return input_string.split(split_by)[index]
+    except IndexError:
+        raise IndexError(f"Index {index} is out of range for the split string.") 
 
 
 def create_file_name(url):
@@ -136,13 +141,12 @@ def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, 
     save_pretty_xml_to_file(root, folder_name, xml_file_name)
 
 
-def validate_xml(xml_file):
+def is_valid_xml(xml_file):
     try:
         with open(xml_file, 'rb') as file:
             xml_doc = etree.parse(file, parser=etree.XMLParser(encoding='utf-8'))
         schema = etree.XMLSchema(file=conf.xsd_file)
         schema.assertValid(xml_doc)
-        print("Validation successful.")
         return True
 
     except etree.XMLSyntaxError as e:
@@ -220,22 +224,23 @@ def run_web_extraction(type_of_web_extraction):
         case "instagram":
             WebdriverClass.login_to_instagram()
 
-    xml_valid = True
     for url_and_metadata_for_website in pages_as_lists:
-        if xml_valid:
-            url = url_and_metadata_for_website[0]
-            tiff_image_name = create_tiff_screenshot(url, folder_name, type_of_web_extraction)
-            print(f"Converted to tiff: {tiff_image_name}")
 
-            xml_file_name = get_part_of_string(tiff_image_name, ".", 0) + ".xml"
-            create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basemetadata)
-            print(f"Created XML file: {xml_file_name}")
+        url = url_and_metadata_for_website[0]
+        tiff_image_name = create_tiff_screenshot(url, folder_name, type_of_web_extraction)
+        print(f"Converted to tiff: {tiff_image_name}")
 
-            xml_file_path = folder_name + "/" + xml_file_name
-            xml_valid = validate_xml(xml_file_path)
+        xml_file_name = get_part_of_string(tiff_image_name, ".", 0) + ".xml"
+        create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basemetadata)
+        print(f"Created XML file: {xml_file_name}")
 
-        else:
+        xml_file_path = folder_name + "/" + xml_file_name
+
+        if not is_valid_xml(xml_file_path):
             print(f"xml not valid: {xml_file_path}")
+            sys.exit()
+        else:
+            print("Validation successful.")
 
     create_package_creator_config(basemetadata, folder_name)
 
