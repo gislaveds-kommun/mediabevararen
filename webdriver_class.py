@@ -1,4 +1,5 @@
 import os
+import json
 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -11,8 +12,10 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 
 import constants as const
-import config as conf
 from exception import LoginException
+
+with open("config.json", "r") as f:
+    config = json.load(f)
 
 
 class WebdriverClass:
@@ -40,7 +43,7 @@ class WebdriverClass:
         options.add_argument("--disable-gpu")
         options.add_argument("--no-sandbox")
 
-        if conf.headless_for_full_height:
+        if config['headless_for_full_height']:
             options.add_argument("--headless")
 
         return options
