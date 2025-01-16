@@ -21,11 +21,11 @@ class WebdriverClass:
     @classmethod
     def get_driver(cls):
         if cls._driver is None:
-            cls._driver = cls.create_driver()
+            cls._driver = cls._create_driver()
         return cls._driver
 
     @classmethod
-    def create_driver(cls):
+    def _create_driver(cls):
         options = cls.get_options()
         service = Service(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=options)

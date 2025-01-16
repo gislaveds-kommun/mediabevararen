@@ -24,6 +24,7 @@ import json
 import os
 import sys
 import re
+import traceback
 import xml.etree.ElementTree as ET
 import xml.dom.minidom
 from datetime import datetime
@@ -37,7 +38,7 @@ from openpyxl import Workbook
 from dotenv import load_dotenv
 
 from constants import PATH_TO_IMAGE_TEMP
-from constants import CLI_STRINGS as io
+from constants import CLI_STRINGS as cli
 from webdriver_class import WebdriverClass
 from exception import LoginException
 
@@ -87,7 +88,7 @@ def save_pretty_xml_to_file(root, folder_name, xml_file_name):
     dom = xml.dom.minidom.parseString(xml_string)
     formatted_xml = dom.toprettyxml(indent="  ", encoding="UTF-8").decode("UTF-8")
 
-    xml_file_path = f"{folder_name}/{xml_file_name}"
+    xml_file_path = Path(folder_name) / xml_file_name
     with open(xml_file_path, "w", encoding="utf-8") as file:
         file.write(formatted_xml)
 
@@ -149,11 +150,8 @@ def is_valid_xml(xml_file):
         schema.assertValid(xml_doc)
         return True
 
-    except etree.XMLSyntaxError as e:
-        print(f"XML syntax error: {e}")
-
-    except etree.DocumentInvalid as e:
-        print(f"Validation error: {e}")
+    except Exception as e:
+        print(f"Unexpected error: {e}")
 
     return False
 
@@ -238,7 +236,7 @@ def run_web_extraction(type_of_web_extraction):
 
         if not is_valid_xml(xml_file_path):
             print(f"xml not valid: {xml_file_path}")
-            sys.exit()
+            break
         else:
             print("Validation successful.")
 
@@ -248,7 +246,7 @@ def run_web_extraction(type_of_web_extraction):
 def case_four_systemnamn():
     systemnamn_message = f"Your current Systemnamn is: {config['systemnamn']}"
     if not config['systemnamn']:
-        systemnamn_message = io['empty_systemnamn']
+        systemnamn_message = cli['empty_systemnamn']
 
     print(systemnamn_message)
     print("************************************")
@@ -258,16 +256,16 @@ def case_four_systemnamn():
     print('Type any other key to exit this menu')
     print("************************************")
 
-    answer_systemnamn_choice = input(io['question_choice'])
+    answer_systemnamn_choice = input(cli['question_choice'])
     match answer_systemnamn_choice.lower():
         case "1":
-            config['systemnamn'] = input(io['question_systemnamn'])
+            config['systemnamn'] = input(cli['question_systemnamn'])
             print(f"Your current Systemnamn is now: {config['systemnamn']}")
         case "2":
             config['systemnamn'] = ""
-            print(io['empty_systemnamn'])
+            print(cli['empty_systemnamn'])
         case _:
-            print(io['exit_systemnamn'])
+            print(cli['exit_systemnamn'])
 
 
 def choose_new_file_input(file_type_name):
@@ -275,7 +273,7 @@ def choose_new_file_input(file_type_name):
     print("Write the new path to your file or write 'quit' to go back without making any changes.")
 
     while True:
-        file_name = input(io['question_path'])
+        file_name = input(cli['question_path'])
         match file_name:
             case "quit":
                 print(f'{file_type_name} was not changed.')
@@ -298,7 +296,7 @@ def get_web_extraction_choice():
     print("************************************")
 
     while True:
-        user_input = input(io['question_web_extraction'])
+        user_input = input(cli['question_web_extraction'])
         match user_input:
             case "1":
                 return "gislaved.se"
@@ -311,30 +309,30 @@ def get_web_extraction_choice():
             case "5":
                 return "instagram"
             case _:
-                print(io['invalid_choice'])
+                print(cli['invalid_choice'])
 
 
 def case_run():
-    print(io['run_program'])
+    print(cli['run_program'])
 
     type_of_web_extraction = get_web_extraction_choice()
 
     print(f"\nYour current 'pages-to-crawl-file' is: {config['pages_to_crawl_file']}")
-    answer_change_pages_to_crawl = input(io['question_change_file'])
+    answer_change_pages_to_crawl = input(cli['question_change_file'])
     if answer_change_pages_to_crawl.lower() == "y":
         new_pages_to_crawl = choose_new_file_input('Pages-to-crawl-file')
         config['pages_to_crawl_file'] = new_pages_to_crawl if new_pages_to_crawl else config['pages_to_crawl_file']
 
     print(f"\nYour current basemetadata-file is: {config['basemetadata_file']}")
-    answer_change_basemetadata = input(io['question_change_file'])
+    answer_change_basemetadata = input(cli['question_change_file'])
     if answer_change_basemetadata.lower() == "y":
         new_basemetadata = choose_new_file_input('basemetadata-file')
         config['basemetadata_file'] = new_basemetadata if new_basemetadata else config['basemetadata_file']
 
     try:
-        print(io['run_web_extraction'])
+        print(cli['run_web_extraction'])
         run_web_extraction(type_of_web_extraction)
-        print(io['extraction completed'])
+        print(cli['extraction completed'])
     except LoginException as e:
         print(f"Login failed: {e}")
     finally:
@@ -348,7 +346,7 @@ def case_one_headless():
 
 def case_two_xsd():
     print(f"\nYour current 'XSD-file' is: {config['xsd_file']}")
-    answer_change_xsd = input(io['question_change_file'])
+    answer_change_xsd = input(cli['question_change_file'])
     if answer_change_xsd.lower() == "y":
         new_xsd_file = choose_new_file_input('XSD-file')
         config['xsd_file'] = new_xsd_file if new_xsd_file else config['xsd_file']
@@ -357,22 +355,20 @@ def case_two_xsd():
 def case_three_contract():
     if config['contract'] != "":
         print(f"Your current Contract-file is:  {config['contract']}")
-    config['contract'] = input(io['new_contract'])
+    config['contract'] = input(cli['new_contract'])
 
 
 def exit_program():
-    print(io['exited_program'])
-    print(io['goodbye'])
+    print(cli['exited_program'])
+    print(cli['goodbye'])
     sys.exit()
 
 
 def start_program():
-    print(io['welcome'])
+    print(cli['welcome'])
     exit = False
 
     while not exit:
-        with open("config.json", "w") as f:
-            json.dump(config, f, indent=4)
 
         print("************************************")
         print("You can choose one of the following actions:")
@@ -384,7 +380,7 @@ def start_program():
         print("4: to change Systemnamn")
         print("************************************")
 
-        user_input = input(io['question_choice'])
+        user_input = input(cli['question_choice'])
 
         match user_input.lower():
             case "1":
@@ -400,7 +396,10 @@ def start_program():
             case "r":
                 case_run()
             case _:
-                print(io['invalid_choice'])
+                print(cli['invalid_choice'])
+
+        with open("config.json", "w") as f:
+            json.dump(config, f, indent=4)
 
 
 if __name__ == "__main__":
@@ -412,8 +411,9 @@ if __name__ == "__main__":
     try:
         start_program()
     except KeyboardInterrupt:
-        print(io['exit_ctrlc'])
+        print(cli['exit_ctrlc'])
     except Exception as e:
         print(f"Exited with error: {e}")
+        traceback.print_exc()
     finally:
         exit_program()

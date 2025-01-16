@@ -17,7 +17,7 @@ LINKEDIN_REJECT_BUTTON = 'button[aria-label="Avvisa"]'
 FACEBOOK_COOKIE_BANNER = "//span[text()='Tillåt alla cookies']"
 TIMEOUT_SECONDS = "10"
 
-IO_STRINGS = {
+CLI_STRINGS = {
     'empty_systemnamn': "Systemnamn is cleared and basmetadata URSRPUNG is chosen",
     'question_choice': "Enter a choice: ",
     'question_systemnamn': "Enter your new Systemnamn: ",

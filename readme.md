@@ -29,31 +29,7 @@ Install them using pip by typing the following in the terminal.
 See https://pip.pypa.io/en/stable/installation/ for help installing pip.
  
 ```
-python -m pip install Pillow 
-```
-
-```
-python -m pip install pandas
-```
-
-```
-python -m pip install lxml
-```
-
-```
-python -m pip install selenium
-```
-
-```
-python -m pip install webdriver-manager
-```
-
-```
-python -m pip install openpyxl
-```
-
-```
-python -m pip pip install python-dotenv
+python -m pip install Pillow pandas lxml selenium webdriver-manager openpyxl python-dotenv
 ```
 
 # Usage
@@ -73,7 +49,7 @@ In the command line menu in the started program you can change many settings and
 There are already sample data and config settings that work out of the box, except the **.env** that
 is needed for usernames and passwords for social media accounts.
 
-Settings are in the files .env , config.py and constants.py, the files are explained further down. 
+Settings are in the files .env , config.json and constants.py, the files are explained further down. 
 
 There are two excel files with sample data and you can change these while the program is running as long as you use the same 
 structure as the sample files. The structure is explained further down.
@@ -95,10 +71,10 @@ facebook_user = "your facebook user"
 
 facebook_password = "your facebook password"
 ```
-### Config settings in config.py
+### Config settings in config.json
 These are default settings that can be changed in the menu while the program is running.
 
-They do not need to be changed in the file unless you want new default settings.
+The default settings will be changed in the config.json if you change settings while running the program.
 
 ### Constants in constants.py
 These are settings that are used in the program but they can not be changed when the program is running.
