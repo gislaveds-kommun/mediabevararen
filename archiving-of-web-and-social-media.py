@@ -3,7 +3,8 @@ Created on Thu Aug 29 16:19:39 2024
 
  < Archiving-of-web-and-social-media: Takes screenshots of webpages and social media
  and converts it to tiff images for the purpose of archiving.>
-    Copyright (C) <2024>  <Jerker Hubertus Bergman>
+     Copyright (C) 2024 Gislaveds Kommun
+     Author: Jerker Hubertus Bergman
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -232,7 +233,7 @@ def run_web_extraction(type_of_web_extraction):
         create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basemetadata)
         print(f"Created XML file: {xml_file_name}")
 
-        xml_file_path = folder_name + "/" + xml_file_name
+        xml_file_path = Path(folder_name) / xml_file_name
 
         if not is_valid_xml(xml_file_path):
             print(f"xml not valid: {xml_file_path}")
@@ -404,8 +405,15 @@ def start_program():
 
 if __name__ == "__main__":
 
-    with open("config.json", "r") as f:
-        config = json.load(f)
+    try:
+        with open("config.json", "r") as f:
+            config = json.load(f)
+    except FileNotFoundError:
+        print("Error: config.json file not found.")
+        exit_program()
+    except json.JSONDecodeError:
+        print("Error: Invalid JSON format in config.json.")
+        exit_program()
 
     load_dotenv()
     try:
