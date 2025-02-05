@@ -1,0 +1,47 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns="freda" elementFormDefault="qualified" targetNamespace="freda">
+
+  <xs:element name="Leveransobjekt">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="Dokument" type="DokumentType" maxOccurs="1" />
+        <xs:element name="DokumentFilnamn" type="xs:string" maxOccurs="1" />
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:complexType name="DokumentType">
+    <xs:sequence>
+      <xs:element name="Organisation" type="xs:string" minOccurs="1" maxOccurs="1" />
+      <xs:element name="Arkivbildare" type="xs:string" minOccurs="1" maxOccurs="1" />
+      <xs:element name="Arkivbildarenhet" type="xs:string" minOccurs="0" maxOccurs="1" />
+      <xs:element name="Arkiv" type="xs:string" minOccurs="1" maxOccurs="1" />
+      <xs:element name="Serie" type="xs:string" minOccurs="1" maxOccurs="1" />
+      <xs:element name="KlassificeringsstrukturText" type="xs:string" minOccurs="0" maxOccurs="1" />
+      <xs:element name="ProcessStrukturerat" type="processType" minOccurs="0" maxOccurs="1" />
+      <xs:element name="Ursprung" type="xs:string" minOccurs="1" maxOccurs="1" />
+      <xs:element name="Arkiveringsdatum" type="xs:date" minOccurs="1" maxOccurs="1" />
+      <xs:element name="Sekretess" type="xs:boolean" minOccurs="1" maxOccurs="1" />
+      <xs:element name="Personuppgifter" type="xs:boolean" minOccurs="1" maxOccurs="1" />
+      <xs:element name="Forskningsdata" type="xs:boolean" minOccurs="0" maxOccurs="1" />
+      <xs:element name="Site" type="xs:string" minOccurs="0" maxOccurs="1" />
+      <xs:element name="Webbsida" type="xs:string" minOccurs="0" maxOccurs="1" />
+      <xs:element name="Webbadress" type="xs:string" minOccurs="1" maxOccurs="1" />
+      <xs:element name="WebPageTitle" type="xs:string" minOccurs="0" maxOccurs="1" />
+      <xs:element name="WebPageKeywords" type="xs:string" minOccurs="0" maxOccurs="1" />
+      <xs:element name="WebPageDescription" type="xs:string" minOccurs="0" maxOccurs="1" />
+      <xs:element name="WebPageCurrentURL" type="xs:string" minOccurs="0" maxOccurs="1" />
+      <xs:element name="Informationsdatum" type="xs:date" minOccurs="1" maxOccurs="1" />
+      <xs:element name="Kommentar" type="xs:string" minOccurs="0" maxOccurs="1" />
+    </xs:sequence>
+  </xs:complexType> 
+
+  <xs:complexType name="processType">
+    <xs:sequence>
+      <xs:element name="nivå1" type="xs:int" minOccurs="0" maxOccurs="1" />
+      <xs:element name="nivå2" type="xs:int" minOccurs="0" maxOccurs="1" />
+      <xs:element name="nivå3" type="xs:int" minOccurs="0" maxOccurs="1" />
+    </xs:sequence>
+  </xs:complexType>
+
+</xs:schema>
