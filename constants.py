@@ -6,7 +6,6 @@ NO_DESCRIPTION_TEXT = "Ingen beskrivning specificerad för denna webbsida"
 PATH_TO_INSTAGRAM = "https://www.instagram.com"
 PATH_TO_LINKEDIN = "https://www.linkedin.com/login/sv?fromSignIn=true&trk=guest_homepage-basic_nav-header-signin"
 PATH_TO_FACEBOOK = "https://www.facebook.com/"
-GISLAVED_SE_COOKIE_BUTTON = "//button[contains(@class, 'env-button--primary') and text()='Godkänn alla kakor']"
 INSTAGRAM_LOGIN_BANNER = '//span[@aria-label="Stäng"]' 
 INSTAGRAM_COOKIE_BANNER = "//button[contains(@class, '_a9--') and text()='Tillåt alla cookies']"
 INSTAGRAM_LOGIN_BUTTON = "//div[contains(text(), 'Logga in')]"
@@ -30,6 +29,7 @@ CLI_STRINGS = {
     'run_web_extraction': "\nRunning the web extraction ....",
     'extraction completed': "Web extraction completed!",
     'new_contract': "Enter your new Contract-file:",
+    'new_click_banner_xpath': "Enter your new Click-Banner Xpath:",
     'exited_program': "Exited the program",
     'welcome': "Welcome to Mediahanteraren",
     'exit_ctrlc': "Ctrl+c was pressed",

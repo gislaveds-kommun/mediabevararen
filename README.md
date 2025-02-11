@@ -18,7 +18,9 @@ Creates a file **Package-Creator-Metadata.xlsx** that is to be used by another s
 
 
 ## Prerequisites
-The application needs to be run on a Windows machine capable of running Python 3.
+The application needs to be run on a machine capable of running Python 3.
+
+The machine needs to have a new version of The Chrome browser installed. 
  
 
 #### Python Modules
@@ -40,7 +42,7 @@ In order to start the program in command line you navigate to the folder with th
 then write the command: 
  
 ```
-python3 .\archiving-of-web-and-social-media.py
+python3 archiving-of-web-and-social-media.py
 ```
 
 In the command line menu in the started program you can change many settings and input data and then run the webextraction.
@@ -75,6 +77,12 @@ facebook_password = "your facebook password"
 These are default settings that can be changed in the menu while the program is running.
 
 The default settings will be changed in the config.json if you change settings while running the program.
+
+The Setting **Headless false** is for "debugging" the clicks on the crawled websites. Meaning you will see what happens during the run.
+
+The Setting **Headless true** is used for the actual web extraction run becuse only with **Headless true** will you get the **full height** of the screenshot.
+
+The setting **Click-Banner Xpath** is used to change the Cookie banner clicked on when running the web extraction **Website click on banner**.
 
 ### Constants in constants.py
 These are settings that are used in the program but they can not be changed when the program is running.

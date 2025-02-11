@@ -289,8 +289,8 @@ def choose_new_file_input(file_type_name):
 def get_web_extraction_choice():
     print("************************************")
     print("The choices of web extraction are:")
-    print("1: gislaved.se")
-    print("2: insidan.gislaved.se")
+    print("1: Website click on banner")
+    print("2: Website no banner")
     print("3: Facebook")
     print("4: LinkedIn")
     print("5: Instagram")
@@ -300,9 +300,9 @@ def get_web_extraction_choice():
         user_input = input(cli['question_web_extraction'])
         match user_input:
             case "1":
-                return "gislaved.se"
+                return "website-click"
             case "2":
-                return "insidan.gislaved.se"
+                return "website-no-banner"
             case "3":
                 return "facebook"
             case "4":
@@ -359,6 +359,11 @@ def case_three_contract():
     config['contract'] = input(cli['new_contract'])
 
 
+def case_five_click_banner():
+    print(f"Your current Click-Banner Xpath is:  {config['website_click_cookie_banner_xpath']}")
+    config['website_click_cookie_banner_xpath'] = input(cli['new_click_banner_xpath'])
+
+
 def exit_program():
     print(cli['exited_program'])
     print(cli['goodbye'])
@@ -379,6 +384,7 @@ def start_program():
         print("2: to change XSD-file")
         print("3: to change Contract-file")
         print("4: to change Systemnamn")
+        print("5: to change Click-Banner Xpath")
         print("************************************")
 
         user_input = input(cli['question_choice'])
@@ -392,6 +398,8 @@ def start_program():
                 case_three_contract()
             case "4":
                 case_four_systemnamn()
+            case "5":
+                case_five_click_banner()
             case "exit":
                 exit = True
             case "r":
@@ -399,14 +407,14 @@ def start_program():
             case _:
                 print(cli['invalid_choice'])
 
-        with open("config.json", "w") as f:
-            json.dump(config, f, indent=4)
+        with open("config.json", "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=4, ensure_ascii=False)
 
 
 if __name__ == "__main__":
 
     try:
-        with open("config.json", "r") as f:
+        with open("config.json", "r", encoding="utf-8") as f:
             config = json.load(f)
     except FileNotFoundError:
         print("Error: config.json file not found.")
