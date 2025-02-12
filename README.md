@@ -78,19 +78,19 @@ These are default settings that can be changed in the menu while the program is 
 
 The default settings will be changed in the config.json if you change settings while running the program.
 
-The setting **headless_for_full_height** is to run the extraction process with or without GUI
+The setting **headless_for_full_height** is to run the extraction process with or without GUI, This setting is called **Headless** in the program. 
 
 **Headless false** is good for "debugging" the clicks on the crawled websites. Meaning you will see what happens during the run.
 
-**Headless true** is used for the actual web extraction run becuse only with **Headless true** will you get the **full height** of the screenshot. It will also be faster.
+**Headless true** is used for the actual web extraction run because only with **Headless true** will you get the **full height** of the screenshot. It will also be faster.
 
 The setting **xsd_file** is for the validation of the FGS XML
 
-The setting **contract** is the name of the contract file and is a prepration for making the LTA archive package in another process. 
+The setting **contract** is the name of the contract file and is a preparation for making the LTA archive package in another process. 
 
 The setting **systemnamn** is the name of the system that has published the website.
 
-The setting **pages_to_crawl_file** is the list of pages/urls that is crawled during the web extraciton. 
+The setting **pages_to_crawl_file** is the list of pages/urls that is crawled during the web extraction. 
 
 The setting **basemetadata_file** is the metadata to be used for the current web extraction. 
 
