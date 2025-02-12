@@ -39,6 +39,8 @@ from openpyxl import Workbook
 from dotenv import load_dotenv
 
 from constants import PATH_TO_IMAGE_TEMP
+from constants import ORG_NUMBER
+from constants import DELIVERY
 from constants import CLI_STRINGS as cli
 from webdriver_class import WebdriverClass
 from exception import LoginException
@@ -181,10 +183,10 @@ def create_package_creator_config(basemetadata, folder_name):
     systemnamn_cleaned = replace_unwanted_chars(systemnamn, '')
 
     config_data = [("Agent 1 Namn", arkivbildare),
-                   ("Agent 1 Kommentar", "ORG:212000-0514"),
+                   ("Agent 1 Kommentar", ORG_NUMBER),
                    ("Agent 2 Namn", systemnamn),
                    ("Agent 3 Namn", arkivbildare),
-                   ("Leverans", "Gislaved-webb-1"),
+                   ("Leverans", DELIVERY),
                    ("Arkivbildare", arkivbildare_cleaned),
                    ("Systemnamn", systemnamn_cleaned),
                    ("Schema", config['xsd_file']),
@@ -289,8 +291,8 @@ def choose_new_file_input(file_type_name):
 def get_web_extraction_choice():
     print("************************************")
     print("The choices of web extraction are:")
-    print("1: Website click on banner")
-    print("2: Website no banner")
+    print("1: Website with a click on a banner")
+    print("2: Website with no clicks")
     print("3: Facebook")
     print("4: LinkedIn")
     print("5: Instagram")

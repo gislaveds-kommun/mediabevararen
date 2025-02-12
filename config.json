@@ -5,5 +5,5 @@
     "systemnamn": "",
     "pages_to_crawl_file": "default_sample_pages.xlsx",
     "basemetadata_file": "default_sample_metadata.xlsx",
-    "website_click_cookie_banner_xpath": "//button[contains(@class, 'env-button--primary') and text()='Godkänn alla kakor']"
+    "website_click_cookie_banner_xpath": "//button[contains(@class, 'primary') and contains(text(), 'Godkänn')]"
 }
