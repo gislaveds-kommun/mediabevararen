@@ -1,5 +1,9 @@
 Release notes
 ================================================================================
+v1.0.1
+* Changes in menu selections. With click and without click on banner.
+* Possibility to change Xpath on banner clicks
+
 v1.0.0 Initial Release
 * Capture screenshots of websites and social media in TIFF format for long-term archiving.
 * Generate metadata in FGS XML format, following the FREDA standard.
