@@ -18,7 +18,9 @@ Creates a file **Package-Creator-Metadata.xlsx** that is to be used by another s
 
 
 ## Prerequisites
-The application needs to be run on a Windows machine capable of running Python 3.
+The application needs to be run on a machine capable of running Python 3.
+
+The machine needs to have the Chrome Browser installed. 
  
 
 #### Python Modules
@@ -40,7 +42,7 @@ In order to start the program in command line you navigate to the folder with th
 then write the command: 
  
 ```
-python3 .\archiving-of-web-and-social-media.py
+python3 archiving-of-web-and-social-media.py
 ```
 
 In the command line menu in the started program you can change many settings and input data and then run the webextraction.
@@ -75,6 +77,24 @@ facebook_password = "your facebook password"
 These are default settings that can be changed in the menu while the program is running.
 
 The default settings will be changed in the config.json if you change settings while running the program.
+
+The setting **headless_for_full_height** is to run the extraction process with or without GUI, this setting is called **Headless** in the program. 
+
+**Headless false** is good for "debugging" the clicks on the crawled websites. Meaning you will see what happens during the run.
+
+**Headless true** is used for the actual web extraction run because only with **Headless true** will you get the **full height** of the screenshot. It will also be faster.
+
+The setting **xsd_file** is for the validation of the FGS XML
+
+The setting **contract** is the name of the contract file and is a preparation for making the LTA archive package in another process. 
+
+The setting **systemnamn** is the name of the system that has published the website.
+
+The setting **pages_to_crawl_file** is the list of pages/urls that is crawled during the web extraction. 
+
+The setting **basemetadata_file** is the metadata to be used for the current web extraction. 
+
+The setting **Click-Banner Xpath** defines the XPath of the cookie banner to be clicked during the Website click on banner extraction process.
 
 ### Constants in constants.py
 These are settings that are used in the program but they can not be changed when the program is running.
@@ -131,6 +151,6 @@ You can change the default xsd file while the program is running but then the me
 This project is licensed under the GPL3 License. See the [LICENSE](LICENSE.txt) file for more information.  
 
 # Contributing
-Contributions are welcome! 
+Contributions are welcome!
 
 

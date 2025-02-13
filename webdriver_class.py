@@ -147,6 +147,8 @@ class WebdriverClass:
     def capture_full_page_screenshot_with_custom_width(cls, output_path, type_of_web_extraction, url):
         driver = cls.get_driver()
         cls.load_webpage(url)
+        with open("config.json", "r", encoding="utf-8") as f:
+            config = json.load(f)
         try:
             WebDriverWait(driver, const.TIMEOUT_SECONDS).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, "body"))
@@ -156,10 +158,10 @@ class WebdriverClass:
             print(f"Error during page load: {e}")
 
         match type_of_web_extraction.lower():
-            case "gislaved.se":
+            case "website-click":
                 try:
                     WebDriverWait(driver, const.TIMEOUT_SECONDS).until(
-                        EC.element_to_be_clickable((By.XPATH, const.GISLAVED_SE_COOKIE_BUTTON))).click()
+                        EC.element_to_be_clickable((By.XPATH, config['website_click_cookie_banner_xpath']))).click()
 
                 except Exception as e:
                     print(f"Error click button cookies: {e}")
