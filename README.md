@@ -78,7 +78,7 @@ These are default settings that can be changed in the menu while the program is 
 
 The default settings will be changed in the config.json if you change settings while running the program.
 
-The setting **headless_for_full_height** is to run the extraction process with or without GUI, This setting is called **Headless** in the program. 
+The setting **headless_for_full_height** is to run the extraction process with or without GUI, this setting is called **Headless** in the program. 
 
 **Headless false** is good for "debugging" the clicks on the crawled websites. Meaning you will see what happens during the run.
 
@@ -94,7 +94,7 @@ The setting **pages_to_crawl_file** is the list of pages/urls that is crawled du
 
 The setting **basemetadata_file** is the metadata to be used for the current web extraction. 
 
-The setting **Click-Banner Xpath** defines the XPath of the cookie banner to be clicked during the Website click on banner extraction process."
+The setting **Click-Banner Xpath** defines the XPath of the cookie banner to be clicked during the Website click on banner extraction process.
 
 ### Constants in constants.py
 These are settings that are used in the program but they can not be changed when the program is running.
