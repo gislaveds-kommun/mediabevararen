@@ -5,5 +5,7 @@
     "systemnamn": "",
     "pages_to_crawl_file": "default_sample_pages.xlsx",
     "basemetadata_file": "default_sample_metadata.xlsx",
-    "website_click_cookie_banner_xpath": "//button[contains(@class, 'primary') and contains(text(), 'Godkänn')]"
+    "website_click_cookie_banner_xpath": "//button[contains(@class, 'primary') and contains(text(), 'Godkänn')]",
+    "divider_regexp_pattern": "(Gislaveds kommun har lagt till [2-9] nya foton.)|(Gislaveds kommun har lagt till ett nytt foto.)",
+    "path_to_local_facebook": "C:/Users/jerber01/Documents/Media/Arkivering_Facebook"
 }

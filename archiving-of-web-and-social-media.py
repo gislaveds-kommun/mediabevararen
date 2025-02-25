@@ -28,10 +28,13 @@ import re
 import traceback
 import xml.etree.ElementTree as ET
 import xml.dom.minidom
+import shutil
+from bs4 import BeautifulSoup
 from datetime import datetime
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
+import requests
 import pandas as pd
 from PIL import Image
 from lxml import etree
@@ -41,6 +44,9 @@ from dotenv import load_dotenv
 from constants import PATH_TO_IMAGE_TEMP
 from constants import ORG_NUMBER
 from constants import DELIVERY
+from constants import LOCAL_FACEBOOK_EXCEL_PATH
+from constants import OUTPUT_DIR_EXTRACTED_DIVS
+from constants import LOCAL_FACEBOOK_IMAGE_DIR
 from constants import CLI_STRINGS as cli
 from webdriver_class import WebdriverClass
 from exception import LoginException
@@ -64,9 +70,17 @@ def get_part_of_string(input_string, split_by, index):
         raise IndexError(f"Index {index} is out of range for the split string.") 
 
 
-def create_file_name(url):
-    filename_first_50_chars_in_url = str(url)[:50]
-    second_part_of_filename = get_part_of_string(filename_first_50_chars_in_url, "//", 1)
+def get_local_url(url):
+    return f"file://{os.path.abspath(url)}"
+
+
+def create_file_name(url, type_of_web_extraction):
+    if type_of_web_extraction == "local-facebook":
+        second_part_of_filename = "local-facebook"
+    else:
+        filename_first_50_chars_in_url = str(url)[:50]
+        second_part_of_filename = get_part_of_string(filename_first_50_chars_in_url, "//", 1)
+
     cleaned_filename = replace_unwanted_chars(second_part_of_filename, "_")
     unique_filename_date_time = cleaned_filename + "_" + datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
 
@@ -96,9 +110,8 @@ def save_pretty_xml_to_file(root, folder_name, xml_file_name):
         file.write(formatted_xml)
 
 
-def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basemetadata):
-    url = url_and_metadata_for_website[0]
-    website = url_and_metadata_for_website[1]
+def create_xml_fgs(url, website, formatted_date, xml_file_name, tiff_image_name, folder_name, basemetadata):
+
     root = ET.Element(
         "Leveransobjekt",
         attrib={
@@ -160,7 +173,7 @@ def is_valid_xml(xml_file):
 
 
 def create_tiff_screenshot(url, folder_name, type_of_web_extraction):
-    filename = create_file_name(url)
+    filename = create_file_name(url, type_of_web_extraction)
     print(f"Processing {filename}")
     output_path_png = "image_temp/" + filename + '.png'
     tiff_image_name = filename + '.tif'
@@ -201,6 +214,110 @@ def create_package_creator_config(basemetadata, folder_name):
     package_creator_workbook.save(config_file_path)
 
 
+def decompose_base_tag(soup):
+    base_tag = soup.find('base')
+    if base_tag:
+        base_tag.decompose()
+    return soup
+
+
+def get_html_start(soup):
+    html_tag = soup.find('html')
+    return "<html>\n" if not html_tag else str(html_tag).split("</head>")[0] + "</head>\n"
+
+
+def save_extracted_data_to_file(extracted_data,excel_path):    
+    df = pd.DataFrame(extracted_data, columns=['Webbadress', 'Webbsida'])
+    df.to_excel(excel_path, index=False)
+
+
+def save_parent_div_as_html(parent_div, html_start, html_end, output_dir_extracted_divs, i):
+    parent_html = str(parent_div)
+    final_html = f"{html_start}<body>\n{parent_html}\n</body>\n{html_end}"
+
+    file_name = f"parent_div_{i + 1}.html"
+    file_path = os.path.join(output_dir_extracted_divs, file_name)
+
+    with open(file_path, 'w', encoding='utf-8') as file:
+        file.write(final_html)
+    print(f"Saved: {file_path}")
+
+    return file_path
+
+
+def copy_local_image(full_img_url, image_dir):
+    local_path = urlparse(full_img_url).path
+
+    if os.name == 'nt': 
+        local_path = local_path.lstrip('/')
+
+    try:
+
+        img_name = os.path.basename(local_path)
+        img_path = os.path.join(image_dir, img_name)
+
+        shutil.copy(local_path, img_path)
+        print(f"Copied: {img_path}")
+
+    except Exception as e:
+        print(f"Failed to copy image {local_path}: {e}")
+
+
+def download_image(full_img_url, img_url, image_dir):
+    try:
+        response = requests.get(full_img_url, stream=True)
+        response.raise_for_status()
+
+        img_name = os.path.basename(img_url)
+        img_path = os.path.join(image_dir, img_name)
+
+        with open(img_path, 'wb') as img_file:
+            for chunk in response.iter_content(1024):
+                img_file.write(chunk)
+
+        print(f"Downloaded: {img_path}")
+
+    except Exception as e:
+        print(f"Failed to download image {full_img_url}: {e}")  
+
+
+def extract_and_save_parent_divs_with_images(html_content, divider_regexp_pattern, base_url, excel_path):
+
+    soup = BeautifulSoup(html_content, 'html.parser')
+    soup = decompose_base_tag(soup)
+    html_start = get_html_start(soup)
+    html_end = "</html>"
+    divider_regex = re.compile(divider_regexp_pattern, re.IGNORECASE)
+    dividers = soup.find_all(lambda tag: tag.name == 'div' and tag.string and divider_regex.search(tag.string))
+
+    os.makedirs(OUTPUT_DIR_EXTRACTED_DIVS, exist_ok=True)
+    image_dir = OUTPUT_DIR_EXTRACTED_DIVS + "/" + LOCAL_FACEBOOK_IMAGE_DIR
+    os.makedirs(image_dir, exist_ok=True)
+
+    extracted_file_paths = []
+
+    for i, divider in enumerate(dividers):
+
+        parent_div = divider.find_parent('div')
+        if parent_div:
+            file_path = save_parent_div_as_html(parent_div, html_start, html_end, OUTPUT_DIR_EXTRACTED_DIVS, i)
+
+            images = parent_div.find_all('img')
+
+            for img in images:
+                img_url = img.get('src')
+
+                if img_url:
+                    full_img_url = urljoin(base_url, img_url)
+                    if full_img_url.startswith("file:///"):
+                        copy_local_image(full_img_url, image_dir)
+                    else:
+                        download_image(full_img_url, img_url, image_dir)
+
+            extracted_file_paths.append([file_path, "Lokal Facebook"])
+    save_extracted_data_to_file(extracted_file_paths, excel_path)
+
+
 def run_web_extraction(type_of_web_extraction):
     pages_as_lists = pd.read_excel(config['pages_to_crawl_file'], sheet_name=0).fillna("").values.tolist()
 
@@ -228,11 +345,16 @@ def run_web_extraction(type_of_web_extraction):
     for url_and_metadata_for_website in pages_as_lists:
 
         url = url_and_metadata_for_website[0]
+        website = url_and_metadata_for_website[1]
+
+        if type_of_web_extraction == "local-facebook":
+            url = get_local_url(url)
+
         tiff_image_name = create_tiff_screenshot(url, folder_name, type_of_web_extraction)
         print(f"Converted to tiff: {tiff_image_name}")
 
         xml_file_name = get_part_of_string(tiff_image_name, ".", 0) + ".xml"
-        create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basemetadata)
+        create_xml_fgs(url, website, formatted_date, xml_file_name, tiff_image_name, folder_name, basemetadata)
         print(f"Created XML file: {xml_file_name}")
 
         xml_file_path = Path(folder_name) / xml_file_name
@@ -296,6 +418,7 @@ def get_web_extraction_choice():
     print("3: Facebook")
     print("4: LinkedIn")
     print("5: Instagram")
+    print("6: Local Facebook")
     print("************************************")
 
     while True:
@@ -311,6 +434,8 @@ def get_web_extraction_choice():
                 return "linkedin"
             case "5":
                 return "instagram"
+            case "6":
+                return "local-facebook"
             case _:
                 print(cli['invalid_choice'])
 
@@ -320,11 +445,35 @@ def case_run():
 
     type_of_web_extraction = get_web_extraction_choice()
 
-    print(f"\nYour current 'pages-to-crawl-file' is: {config['pages_to_crawl_file']}")
-    answer_change_pages_to_crawl = input(cli['question_change_file'])
-    if answer_change_pages_to_crawl.lower() == "y":
-        new_pages_to_crawl = choose_new_file_input('Pages-to-crawl-file')
-        config['pages_to_crawl_file'] = new_pages_to_crawl if new_pages_to_crawl else config['pages_to_crawl_file']
+    if type_of_web_extraction == "local-facebook":
+
+        print(f"\nYour current 'path to local facebook' is: {config['path_to_local_facebook']}")
+        answer_path_to_local_facebook = input(cli['question_local_facebook'])
+        if answer_path_to_local_facebook.lower() == "y":
+            new_path_local_facebook = input(cli['question_get_path_local_facebook'])
+            config['path_to_local_facebook'] = new_path_local_facebook if new_path_local_facebook else config['path_to_local_facebook']
+
+        base_path = "file:///" + config['path_to_local_facebook']
+        file_path = config['path_to_local_facebook'] + "/this_profile's_activity_across_facebook/posts/profile_posts_1.html"
+
+        print(f"\nYour current 'divider regexp' is: {config['divider_regexp_pattern']}")
+        answer_divider_regexp_pattern = input(cli['question_regexp_pattern'])
+        if answer_divider_regexp_pattern.lower() == "y":
+            new_divider_regexp = input(cli['question_get_new_regexp'])
+            config['divider_regexp_pattern'] = new_divider_regexp if new_divider_regexp else config['divider_regexp_pattern']
+
+        with open(file_path, 'r', encoding='utf-8') as file:
+            html_content = file.read()
+
+        extract_and_save_parent_divs_with_images(html_content, config['divider_regexp_pattern'], base_path, LOCAL_FACEBOOK_EXCEL_PATH)
+        config['pages_to_crawl_file'] = LOCAL_FACEBOOK_EXCEL_PATH
+
+    else:
+        print(f"\nYour current 'pages-to-crawl-file' is: {config['pages_to_crawl_file']}")
+        answer_change_pages_to_crawl = input(cli['question_change_file'])
+        if answer_change_pages_to_crawl.lower() == "y":
+            new_pages_to_crawl = choose_new_file_input('Pages-to-crawl-file')
+            config['pages_to_crawl_file'] = new_pages_to_crawl if new_pages_to_crawl else config['pages_to_crawl_file']
 
     print(f"\nYour current basemetadata-file is: {config['basemetadata_file']}")
     answer_change_basemetadata = input(cli['question_change_file'])

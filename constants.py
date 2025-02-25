@@ -17,6 +17,10 @@ FACEBOOK_COOKIE_BANNER = "//span[text()='Tillåt alla cookies']"
 ORG_NUMBER = "ORG:212000-0514"
 DELIVERY = "Gislaved-webb-1"
 TIMEOUT_SECONDS = "10"
+LOCAL_FACEBOOK_EXCEL_PATH = "facebook_local.xlsx"
+OUTPUT_DIR_EXTRACTED_DIVS = "extracted_divs"
+LOCAL_FACEBOOK_IMAGE_DIR = "this_profile\'s_activity_across_facebook/posts/media/Fotonfrantidslinjen_jAIdt6DcyQ"
+
 
 CLI_STRINGS = {
     'empty_systemnamn': "Systemnamn is cleared and basmetadata URSRPUNG is chosen",
@@ -31,9 +35,14 @@ CLI_STRINGS = {
     'run_web_extraction': "\nRunning the web extraction ....",
     'extraction completed': "Web extraction completed!",
     'new_contract': "Enter your new Contract-file:",
-    'new_click_banner_xpath': "Enter your new Click-Banner Xpath:",
+    'new_click_banner_xpath': "Enter your new Click-Banner Xpath: ",
     'exited_program': "Exited the program",
     'welcome': "Welcome to Mediahanteraren",
     'exit_ctrlc': "Ctrl+c was pressed",
-    'goodbye': "Goodbye!"
+    'goodbye': "Goodbye!",
+    'question_regexp_pattern': "Do you want to change it y/n? ",
+    'question_get_new_regexp': "Enter your new divider regexp: ",
+    'question_local_facebook': "Do you want to change it y/n? ",
+    'question_get_path_local_facebook': "Enter your new local facebook path: "
+    
 }
