@@ -248,7 +248,7 @@ def save_parent_div_as_html(parent_div, html_start, html_end, output_dir_extract
 def copy_local_image(full_img_url, image_dir):
     local_path = urlparse(full_img_url).path
 
-    if os.name == 'nt': 
+    if os.name == 'nt':
         local_path = local_path.lstrip('/')
 
     try:
@@ -453,7 +453,7 @@ def case_run():
             new_path_local_facebook = input(cli['question_get_path_local_facebook'])
             config['path_to_local_facebook'] = new_path_local_facebook if new_path_local_facebook else config['path_to_local_facebook']
 
-        base_path = "file:///" + config['path_to_local_facebook']
+        base_path = "file:///" + config['path_to_local_facebook'] + "/"
         file_path = config['path_to_local_facebook'] + "/this_profile's_activity_across_facebook/posts/profile_posts_1.html"
 
         print(f"\nYour current 'divider regexp' is: {config['divider_regexp_pattern']}")

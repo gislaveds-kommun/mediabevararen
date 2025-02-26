@@ -3,8 +3,8 @@
     "xsd_file": "FREDA-GS-Webbsidor-v1_0.xsd",
     "contract": "",
     "systemnamn": "",
-    "pages_to_crawl_file": "default_sample_pages.xlsx",
-    "basemetadata_file": "default_sample_metadata.xlsx",
+    "pages_to_crawl_file": "facebook_local.xlsx",
+    "basemetadata_file": "basmetadata_kommunens_facebook.xlsx",
     "website_click_cookie_banner_xpath": "//button[contains(@class, 'primary') and contains(text(), 'Godkänn')]",
     "divider_regexp_pattern": "(Gislaveds kommun har lagt till [2-9] nya foton.)|(Gislaveds kommun har lagt till ett nytt foto.)",
     "path_to_local_facebook": "C:/Users/jerber01/Documents/Media/Arkivering_Facebook"
