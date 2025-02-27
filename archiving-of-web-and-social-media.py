@@ -41,12 +41,7 @@ from lxml import etree
 from openpyxl import Workbook
 from dotenv import load_dotenv
 
-from constants import PATH_TO_IMAGE_TEMP
-from constants import ORG_NUMBER
-from constants import DELIVERY
-from constants import LOCAL_FACEBOOK_EXCEL_PATH
-from constants import OUTPUT_DIR_EXTRACTED_DIVS
-from constants import LOCAL_FACEBOOK_IMAGE_DIR
+import constants as const
 from constants import CLI_STRINGS as cli
 from webdriver_class import WebdriverClass
 from exception import LoginException
@@ -70,16 +65,18 @@ def get_part_of_string(input_string, split_by, index):
         raise IndexError(f"Index {index} is out of range for the split string.") 
 
 
-def get_local_url(url):
-    return f"file://{os.path.abspath(url)}"
+def get_local_file_url(file_path):
+    abs_path = os.path.abspath(file_path)
+    return urljoin('file:', f'/{abs_path}')
 
 
-def create_file_name(url, type_of_web_extraction):
-    if type_of_web_extraction == "local-facebook":
-        second_part_of_filename = "local-facebook"
-    else:
-        filename_first_50_chars_in_url = str(url)[:50]
-        second_part_of_filename = get_part_of_string(filename_first_50_chars_in_url, "//", 1)
+def create_file_name(url, type_of_web_extraction):    
+    match type_of_web_extraction:
+        case "local-facebook":
+            second_part_of_filename = "local-facebook"
+        case _:
+            filename_first_50_chars_in_url = str(url)[:50]
+            second_part_of_filename = get_part_of_string(filename_first_50_chars_in_url, "//", 1)
 
     cleaned_filename = replace_unwanted_chars(second_part_of_filename, "_")
     unique_filename_date_time = cleaned_filename + "_" + datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
@@ -196,10 +193,10 @@ def create_package_creator_config(basemetadata, folder_name):
     systemnamn_cleaned = replace_unwanted_chars(systemnamn, '')
 
     config_data = [("Agent 1 Namn", arkivbildare),
-                   ("Agent 1 Kommentar", ORG_NUMBER),
+                   ("Agent 1 Kommentar", const.ORG_NUMBER),
                    ("Agent 2 Namn", systemnamn),
                    ("Agent 3 Namn", arkivbildare),
-                   ("Leverans", DELIVERY),
+                   ("Leverans", const.DELIVERY),
                    ("Arkivbildare", arkivbildare_cleaned),
                    ("Systemnamn", systemnamn_cleaned),
                    ("Schema", config['xsd_file']),
@@ -226,7 +223,7 @@ def get_html_start(soup):
     return "<html>\n" if not html_tag else str(html_tag).split("</head>")[0] + "</head>\n"
 
 
-def save_extracted_data_to_file(extracted_data,excel_path):    
+def save_extracted_data_to_file(extracted_data, excel_path):    
     df = pd.DataFrame(extracted_data, columns=['Webbadress', 'Webbsida'])
     df.to_excel(excel_path, index=False)
 
@@ -290,8 +287,8 @@ def extract_and_save_parent_divs_with_images(html_content, divider_regexp_patter
     divider_regex = re.compile(divider_regexp_pattern, re.IGNORECASE)
     dividers = soup.find_all(lambda tag: tag.name == 'div' and tag.string and divider_regex.search(tag.string))
 
-    os.makedirs(OUTPUT_DIR_EXTRACTED_DIVS, exist_ok=True)
-    image_dir = OUTPUT_DIR_EXTRACTED_DIVS + "/" + LOCAL_FACEBOOK_IMAGE_DIR
+    os.makedirs(const.OUTPUT_DIR_EXTRACTED_DIVS, exist_ok=True)
+    image_dir = const.OUTPUT_DIR_EXTRACTED_DIVS + "/" + const.LOCAL_FACEBOOK_IMAGE_DIR
     os.makedirs(image_dir, exist_ok=True)
 
     extracted_file_paths = []
@@ -300,7 +297,7 @@ def extract_and_save_parent_divs_with_images(html_content, divider_regexp_patter
 
         parent_div = divider.find_parent('div')
         if parent_div:
-            file_path = save_parent_div_as_html(parent_div, html_start, html_end, OUTPUT_DIR_EXTRACTED_DIVS, i)
+            file_path = save_parent_div_as_html(parent_div, html_start, html_end, const.OUTPUT_DIR_EXTRACTED_DIVS, i)
 
             images = parent_div.find_all('img')
 
@@ -331,8 +328,8 @@ def run_web_extraction(type_of_web_extraction):
     folder_name = "files for package creator " + formatted_date_time
     os.mkdir(folder_name)
 
-    if not os.path.isdir(PATH_TO_IMAGE_TEMP):
-        os.mkdir(PATH_TO_IMAGE_TEMP)
+    if not os.path.isdir(const.PATH_TO_IMAGE_TEMP):
+        os.mkdir(const.PATH_TO_IMAGE_TEMP)
 
     match type_of_web_extraction.lower():
         case "facebook":
@@ -348,7 +345,8 @@ def run_web_extraction(type_of_web_extraction):
         website = url_and_metadata_for_website[1]
 
         if type_of_web_extraction == "local-facebook":
-            url = get_local_url(url)
+            # url = get_local_url(url)
+            url = get_local_file_url(url)
 
         tiff_image_name = create_tiff_screenshot(url, folder_name, type_of_web_extraction)
         print(f"Converted to tiff: {tiff_image_name}")
@@ -465,8 +463,8 @@ def case_run():
         with open(file_path, 'r', encoding='utf-8') as file:
             html_content = file.read()
 
-        extract_and_save_parent_divs_with_images(html_content, config['divider_regexp_pattern'], base_path, LOCAL_FACEBOOK_EXCEL_PATH)
-        config['pages_to_crawl_file'] = LOCAL_FACEBOOK_EXCEL_PATH
+        extract_and_save_parent_divs_with_images(html_content, config['divider_regexp_pattern'], base_path, const.LOCAL_FACEBOOK_EXCEL_PATH)
+        config['pages_to_crawl_file'] = const.LOCAL_FACEBOOK_EXCEL_PATH
 
     else:
         print(f"\nYour current 'pages-to-crawl-file' is: {config['pages_to_crawl_file']}")
