@@ -62,7 +62,7 @@ class WebdriverClass:
     def take_screenshot(cls, output_path):
         driver = cls.get_driver()
         driver.implicitly_wait(const.TIMEOUT_SECONDS)
-        page_height = cls._driver.execute_script("return document.documentElement.scrollHeight")
+        page_height = cls._driver.execute_script("return document.documentElement.scrollHeight") + 150
         driver.set_window_size(const.WIDTH_Of_SCREENSHOT, page_height)
         driver.save_screenshot(output_path)
         print(f"Saved screenshot to {output_path}")
