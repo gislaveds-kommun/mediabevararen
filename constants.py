@@ -29,6 +29,7 @@ CLI_STRINGS = {
     'exit_systemnamn': 'Exited menu for systemnamn',
     'question_path': "Path to file: ",
     'question_web_extraction': "What type of web extraction do you want to run? ",
+    'question_local_fb_divide': "What type of divider do you want to use? ",
     'invalid_choice': "Not a correct choice. Please try again.",
     'run_program': "The program is running.",
     'question_change_file': "Do you want to change it y/n? ",

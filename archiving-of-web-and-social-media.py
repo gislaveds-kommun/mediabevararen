@@ -342,17 +342,19 @@ def extract_and_save_parent_divs_with_images(html_content, divider_regexp_patter
     tag_div_main = soup.find('div', {"role": "main"})
     extracted_file_paths = []
 
+    reg_exp = re.compile(divider_regexp_pattern)
+
     i = 0
-    for content in tag_div_main.contents:
-        if content.find('img'):
-            tag_body.contents.clear()
-            tag_body.append(content)
+    for child in tag_div_main.children:
+        if child.find(string=reg_exp):
+            tag_body.clear()
+            tag_body.append(child)
             file_name = f'post_html_{i}.html'
             file_path = os.path.join(const.OUTPUT_DIR_EXTRACTED_DIVS, file_name)
             save_html(result_html, file_path)
             extracted_file_paths.append([file_path, "Lokal Facebook"])
 
-            images = content.find_all('img')
+            images = child.find_all('img')
 
             for img in images:
                 img_url = img.get('src')
@@ -492,6 +494,46 @@ def get_web_extraction_choice():
                 print(cli['invalid_choice'])
 
 
+def get_local_facebook_divide_choice():
+    print("************************************")
+    print("The choices of web extraction are:")
+    print("1: Divs with images")
+    print("2: Divs with images and movies")
+    print("3: Custom regexp")
+    print("4: -")
+    print("5: -")
+    print("6: -")
+    print("************************************")
+
+    while True:
+        user_input = input(cli['question_local_fb_divide'])
+        match user_input:
+            case "1":
+                return "with-images"
+            case "2":
+                return "with-images-movies"
+            case "3":
+                return "custom-regexp"
+            case "4":
+                return "-"
+            case "5":
+                return "-"
+            case "6":
+                return "-"
+            case _:
+                print(cli['invalid_choice'])
+
+
+
+def get_custom_regexp():
+    print(f"\nYour current 'divider regexp' is: {config['divider_regexp_pattern']}")
+    answer_divider_regexp_pattern = input(cli['question_regexp_pattern'])
+    if answer_divider_regexp_pattern.lower() == "y":
+        new_divider_regexp = input(cli['question_get_new_regexp'])
+        config['divider_regexp_pattern'] = new_divider_regexp if new_divider_regexp else config['divider_regexp_pattern']
+
+
+
 def case_run():
     print(cli['run_program'])
 
@@ -508,12 +550,15 @@ def case_run():
         base_path = "file:///" + config['path_to_local_facebook'] + "/"
         file_path = config['path_to_local_facebook'] + "/this_profile's_activity_across_facebook/posts/profile_posts_1.html"
 
-        print(f"\nYour current 'divider regexp' is: {config['divider_regexp_pattern']}")
-        answer_divider_regexp_pattern = input(cli['question_regexp_pattern'])
-        if answer_divider_regexp_pattern.lower() == "y":
-            new_divider_regexp = input(cli['question_get_new_regexp'])
-            config['divider_regexp_pattern'] = new_divider_regexp if new_divider_regexp else config['divider_regexp_pattern']
-
+        local_facebook_divider_type = get_local_facebook_divide_choice()
+        match local_facebook_divider_type:
+            case "with-images":
+                config['divider_regexp_pattern'] = r'har lagt till .+ foto.?\.'
+            case "with-images-movies":
+                config['divider_regexp_pattern'] = r'har lagt till .+ foto.?'
+            case "custom-regexp":
+                get_custom_regexp()
+        
         with open(file_path, 'r', encoding='utf-8') as file:
             html_content = file.read()
 
