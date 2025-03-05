@@ -278,7 +278,7 @@ def download_image(full_img_url, img_url, image_dir):
         print(f"Failed to download image {full_img_url}: {e}")  
 
 
-def extract_and_save_parent_divs_with_images(html_content, divider_regexp_pattern, base_url, excel_path):
+def extract_and_save_parent_divs_with_imagesold(html_content, divider_regexp_pattern, base_url, excel_path):
 
     soup = BeautifulSoup(html_content, 'html.parser')
     soup = decompose_base_tag(soup)
@@ -312,6 +312,60 @@ def extract_and_save_parent_divs_with_images(html_content, divider_regexp_patter
                         download_image(full_img_url, img_url, image_dir)
 
             extracted_file_paths.append([file_path, "Lokal Facebook"])
+    save_extracted_data_to_file(extracted_file_paths, excel_path)
+
+
+def save_html(html_soup, save_path):
+    with open(save_path, 'w', encoding='utf-8') as file:
+        file.write(str(html_soup.prettify()))
+
+
+def extract_and_save_parent_divs_with_images(html_content, divider_regexp_pattern, base_url, excel_path):
+
+    os.makedirs(const.OUTPUT_DIR_EXTRACTED_DIVS, exist_ok=True)
+    image_dir = const.OUTPUT_DIR_EXTRACTED_DIVS + "/" + const.LOCAL_FACEBOOK_IMAGE_DIR
+    os.makedirs(image_dir, exist_ok=True)
+
+    soup = BeautifulSoup(html_content, 'html.parser')
+    result_html = BeautifulSoup('<html></html>', 'html.parser')
+
+    tag_html = result_html.html
+
+    if soup.head:
+        if soup.head.base:
+            soup.head.base.decompose()
+        tag_html.append(soup.head)
+
+    tag_body = result_html.new_tag('body')
+    tag_html.append(tag_body)
+
+    tag_div_main = soup.find('div', {"role": "main"})
+    extracted_file_paths = []
+
+    i = 0
+    for content in tag_div_main.contents:
+        if content.find('img'):
+            tag_body.contents.clear()
+            tag_body.append(content)
+            file_name = f'post_html_{i}.html'
+            file_path = os.path.join(const.OUTPUT_DIR_EXTRACTED_DIVS, file_name)
+            save_html(result_html, file_path)
+            extracted_file_paths.append([file_path, "Lokal Facebook"])
+
+            images = content.find_all('img')
+
+            for img in images:
+                img_url = img.get('src')
+
+                if img_url:
+                    full_img_url = urljoin(base_url, img_url)
+                    if full_img_url.startswith("file:///"):
+                        copy_local_image(full_img_url, image_dir)
+                    else:
+                        download_image(full_img_url, img_url, image_dir)
+            i += 1
+        if i > 3:
+            break
     save_extracted_data_to_file(extracted_file_paths, excel_path)
 
 
