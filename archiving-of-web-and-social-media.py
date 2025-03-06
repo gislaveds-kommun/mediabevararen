@@ -320,7 +320,23 @@ def save_html(html_soup, save_path):
         file.write(str(html_soup.prettify()))
 
 
-def extract_and_save_parent_divs_with_images(html_content, divider_regexp_pattern, base_url, excel_path):
+def translate_date(date):
+    date = date.replace("fm", "AM").replace("em", "PM")
+
+    month_translation = {
+        "jan": "Jan", "feb": "Feb", "mar": "Mar", "apr": "Apr", "maj": "May", "jun": "Jun",
+        "jul": "Jul", "aug": "Aug", "sep": "Sep", "okt": "Oct", "nov": "Nov", "dec": "Dec"
+    }
+
+    parts = date.split(" ")
+    month = parts[0].lower()
+    if month in month_translation:
+        parts[0] = month_translation[month]  # Replace with English equivalent
+    date = " ".join(parts)
+    return date
+
+
+def extract_and_save_parent_divs_with_images(html_content, divider_regexp_pattern, base_url, excel_path, lower_comparison_date, upper_comparison_date, is_date_comparison):
 
     os.makedirs(const.OUTPUT_DIR_EXTRACTED_DIVS, exist_ok=True)
     image_dir = const.OUTPUT_DIR_EXTRACTED_DIVS + "/" + const.LOCAL_FACEBOOK_IMAGE_DIR
@@ -343,31 +359,40 @@ def extract_and_save_parent_divs_with_images(html_content, divider_regexp_patter
     extracted_file_paths = []
 
     reg_exp = re.compile(divider_regexp_pattern)
+    date_pattern = re.compile('[a-z]{3} [0-9]{1,2}, [0-9]{4}')
 
     i = 0
     for child in tag_div_main.children:
         if child.find(string=reg_exp):
-            tag_body.clear()
-            tag_body.append(child)
-            file_name = f'post_html_{i}.html'
-            file_path = os.path.join(const.OUTPUT_DIR_EXTRACTED_DIVS, file_name)
-            save_html(result_html, file_path)
-            extracted_file_paths.append([file_path, "Lokal Facebook"])
+            match = child.find(string=date_pattern)
+            if match:
+                found_date = match.strip()
+                found_date = translate_date(found_date)
+                date_obj = datetime.strptime(found_date, "%b %d, %Y %I:%M:%S %p")
+                print("Extracted Date:", found_date)
 
-            images = child.find_all('img')
+                if (date_obj > lower_comparison_date and date_obj < upper_comparison_date) or not is_date_comparison:
+                    tag_body.clear()
+                    tag_body.append(child)
+                    file_name = f'post_html_{i}.html'
+                    file_path = os.path.join(const.OUTPUT_DIR_EXTRACTED_DIVS, file_name)
+                    save_html(result_html, file_path)
+                    extracted_file_paths.append([file_path, "Lokal Facebook"])
 
-            for img in images:
-                img_url = img.get('src')
+                    images = child.find_all('img')
 
-                if img_url:
-                    full_img_url = urljoin(base_url, img_url)
-                    if full_img_url.startswith("file:///"):
-                        copy_local_image(full_img_url, image_dir)
-                    else:
-                        download_image(full_img_url, img_url, image_dir)
-            i += 1
-        if i > 3:
-            break
+                    for img in images:
+                        img_url = img.get('src')
+
+                        if img_url:
+                            full_img_url = urljoin(base_url, img_url)
+                            if full_img_url.startswith("file:///"):
+                                copy_local_image(full_img_url, image_dir)
+                            else:
+                                download_image(full_img_url, img_url, image_dir)
+                    i += 1
+                    # if i > 3:
+                    #    break
     save_extracted_data_to_file(extracted_file_paths, excel_path)
 
 
@@ -401,7 +426,6 @@ def run_web_extraction(type_of_web_extraction):
         website = url_and_metadata_for_website[1]
 
         if type_of_web_extraction == "local-facebook":
-            # url = get_local_url(url)
             url = get_local_file_url(url)
 
         tiff_image_name = create_tiff_screenshot(url, folder_name, type_of_web_extraction)
@@ -496,33 +520,23 @@ def get_web_extraction_choice():
 
 def get_local_facebook_divide_choice():
     print("************************************")
-    print("The choices of web extraction are:")
+    print("The choices for dividing the local facebook are:")
     print("1: Divs with images")
     print("2: Divs with images and movies")
     print("3: Custom regexp")
-    print("4: -")
-    print("5: -")
-    print("6: -")
     print("************************************")
 
     while True:
         user_input = input(cli['question_local_fb_divide'])
         match user_input:
             case "1":
-                return "with-images"
+                return r'har lagt till .+ foto.?\.'
             case "2":
-                return "with-images-movies"
+                return r'har lagt till .+ foto.?'
             case "3":
-                return "custom-regexp"
-            case "4":
-                return "-"
-            case "5":
-                return "-"
-            case "6":
-                return "-"
+                return get_custom_regexp()
             case _:
                 print(cli['invalid_choice'])
-
 
 
 def get_custom_regexp():
@@ -531,7 +545,62 @@ def get_custom_regexp():
     if answer_divider_regexp_pattern.lower() == "y":
         new_divider_regexp = input(cli['question_get_new_regexp'])
         config['divider_regexp_pattern'] = new_divider_regexp if new_divider_regexp else config['divider_regexp_pattern']
+        return config['divider_regexp_pattern']
 
+
+def is_valid_date(date_str):
+    try:
+        datetime.strptime(date_str, "%Y-%m-%d")
+        return True
+    except ValueError:
+        return False
+
+
+def get_filter_date(date_type):
+
+    match date_type:
+        case "lower":
+            answer_filter_date = input(cli['question_lower_date'])
+        case "upper":
+            answer_filter_date = input(cli['question_upper_date'])
+
+    if answer_filter_date.lower() == "y":
+        while True:
+            filter_date = input(cli['question_get_filter_date'])
+            if is_valid_date(filter_date):
+                return filter_date
+            else:
+                print(cli['invalid_date_format'])
+    else:
+        return False
+
+
+def transform_date(date_str):
+    return datetime.strptime(date_str, "%Y-%m-%d")
+
+
+def get_path_to_local_facebook():
+    print(f"\nYour current 'path to local facebook' is: {config['path_to_local_facebook']}")
+    answer_path_to_local_facebook = input(cli['question_local_facebook'])
+    if answer_path_to_local_facebook.lower() == "y":
+        new_path_local_facebook = input(cli['question_get_path_local_facebook'])
+        config['path_to_local_facebook'] = new_path_local_facebook if new_path_local_facebook else config['path_to_local_facebook']
+
+
+def get_pages_to_crawl_file():
+    print(f"\nYour current 'pages-to-crawl-file' is: {config['pages_to_crawl_file']}")
+    answer_change_pages_to_crawl = input(cli['question_change_file'])
+    if answer_change_pages_to_crawl.lower() == "y":
+        new_pages_to_crawl = choose_new_file_input('Pages-to-crawl-file')
+        config['pages_to_crawl_file'] = new_pages_to_crawl if new_pages_to_crawl else config['pages_to_crawl_file']
+
+
+def get_basemetadata_file():
+    print(f"\nYour current basemetadata-file is: {config['basemetadata_file']}")
+    answer_change_basemetadata = input(cli['question_change_file'])
+    if answer_change_basemetadata.lower() == "y":
+        new_basemetadata = choose_new_file_input('basemetadata-file')
+        config['basemetadata_file'] = new_basemetadata if new_basemetadata else config['basemetadata_file']
 
 
 def case_run():
@@ -541,42 +610,37 @@ def case_run():
 
     if type_of_web_extraction == "local-facebook":
 
-        print(f"\nYour current 'path to local facebook' is: {config['path_to_local_facebook']}")
-        answer_path_to_local_facebook = input(cli['question_local_facebook'])
-        if answer_path_to_local_facebook.lower() == "y":
-            new_path_local_facebook = input(cli['question_get_path_local_facebook'])
-            config['path_to_local_facebook'] = new_path_local_facebook if new_path_local_facebook else config['path_to_local_facebook']
+        get_path_to_local_facebook()
+        base_path = f"file:///{config['path_to_local_facebook']}/"
+        file_path = os.path.join(config['path_to_local_facebook'], "this_profile's_activity_across_facebook/posts/profile_posts_1.html")
 
-        base_path = "file:///" + config['path_to_local_facebook'] + "/"
-        file_path = config['path_to_local_facebook'] + "/this_profile's_activity_across_facebook/posts/profile_posts_1.html"
+        config['divider_regexp_pattern'] = get_local_facebook_divide_choice()
 
-        local_facebook_divider_type = get_local_facebook_divide_choice()
-        match local_facebook_divider_type:
-            case "with-images":
-                config['divider_regexp_pattern'] = r'har lagt till .+ foto.?\.'
-            case "with-images-movies":
-                config['divider_regexp_pattern'] = r'har lagt till .+ foto.?'
-            case "custom-regexp":
-                get_custom_regexp()
-        
+        is_date_comparison = False
+        lower_comparison_date = get_filter_date("lower")
+        if lower_comparison_date:
+            lower_comparison_date = transform_date(lower_comparison_date)
+            is_date_comparison = True
+        else:
+            lower_comparison_date = datetime(1, 1, 1, 0, 0, 0)
+
+        upper_comparison_date = get_filter_date("upper")
+        if upper_comparison_date:
+            upper_comparison_date = transform_date(upper_comparison_date)
+            is_date_comparison = True
+        else:
+            lower_comparison_date = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
+
         with open(file_path, 'r', encoding='utf-8') as file:
             html_content = file.read()
 
-        extract_and_save_parent_divs_with_images(html_content, config['divider_regexp_pattern'], base_path, const.LOCAL_FACEBOOK_EXCEL_PATH)
+        extract_and_save_parent_divs_with_images(html_content, config['divider_regexp_pattern'], base_path, const.LOCAL_FACEBOOK_EXCEL_PATH, lower_comparison_date, upper_comparison_date, is_date_comparison)
         config['pages_to_crawl_file'] = const.LOCAL_FACEBOOK_EXCEL_PATH
 
     else:
-        print(f"\nYour current 'pages-to-crawl-file' is: {config['pages_to_crawl_file']}")
-        answer_change_pages_to_crawl = input(cli['question_change_file'])
-        if answer_change_pages_to_crawl.lower() == "y":
-            new_pages_to_crawl = choose_new_file_input('Pages-to-crawl-file')
-            config['pages_to_crawl_file'] = new_pages_to_crawl if new_pages_to_crawl else config['pages_to_crawl_file']
+        get_pages_to_crawl_file()
 
-    print(f"\nYour current basemetadata-file is: {config['basemetadata_file']}")
-    answer_change_basemetadata = input(cli['question_change_file'])
-    if answer_change_basemetadata.lower() == "y":
-        new_basemetadata = choose_new_file_input('basemetadata-file')
-        config['basemetadata_file'] = new_basemetadata if new_basemetadata else config['basemetadata_file']
+    get_basemetadata_file()
 
     try:
         print(cli['run_web_extraction'])

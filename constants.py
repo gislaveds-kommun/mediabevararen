@@ -31,6 +31,7 @@ CLI_STRINGS = {
     'question_web_extraction': "What type of web extraction do you want to run? ",
     'question_local_fb_divide': "What type of divider do you want to use? ",
     'invalid_choice': "Not a correct choice. Please try again.",
+    'invalid_date_format': "Not a correct date format, has to be YYYY-MM-DD, Please try again.",
     'run_program': "The program is running.",
     'question_change_file': "Do you want to change it y/n? ",
     'run_web_extraction': "\nRunning the web extraction ....",
@@ -44,6 +45,10 @@ CLI_STRINGS = {
     'question_regexp_pattern': "Do you want to change it y/n? ",
     'question_get_new_regexp': "Enter your new divider regexp: ",
     'question_local_facebook': "Do you want to change it y/n? ",
-    'question_get_path_local_facebook': "Enter your new local facebook path: "
+    'question_get_path_local_facebook': "Enter your new local facebook path: ",
+    'question_lower_date': "Do you want filter with a lower date y/n? ",
+    'question_upper_date': "Do you want filter with a upper date y/n? ",
+    'question_get_filter_date': "Enter the date in format YYYY-MM-DD "
+    
     
 }
