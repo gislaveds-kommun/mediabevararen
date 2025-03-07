@@ -331,12 +331,12 @@ def translate_date(date):
     parts = date.split(" ")
     month = parts[0].lower()
     if month in month_translation:
-        parts[0] = month_translation[month]  # Replace with English equivalent
+        parts[0] = month_translation[month]  
     date = " ".join(parts)
     return date
 
 
-def extract_and_save_parent_divs_with_images(html_content, divider_regexp_pattern, base_url, excel_path, lower_comparison_date, upper_comparison_date, is_date_comparison):
+def extract_and_save_divs_with_images(html_content, divider_regexp_pattern, base_url, excel_path, lower_comparison_date, upper_comparison_date, is_date_comparison):
 
     os.makedirs(const.OUTPUT_DIR_EXTRACTED_DIVS, exist_ok=True)
     image_dir = const.OUTPUT_DIR_EXTRACTED_DIVS + "/" + const.LOCAL_FACEBOOK_IMAGE_DIR
@@ -603,38 +603,42 @@ def get_basemetadata_file():
         config['basemetadata_file'] = new_basemetadata if new_basemetadata else config['basemetadata_file']
 
 
+def divide_local_facebook_and_fill_excel():
+
+    get_path_to_local_facebook()
+    base_path = f"file:///{config['path_to_local_facebook']}/"
+    file_path = os.path.join(config['path_to_local_facebook'], "this_profile's_activity_across_facebook/posts/profile_posts_1.html")
+
+    config['divider_regexp_pattern'] = get_local_facebook_divide_choice()
+
+    is_date_comparison = False
+    lower_comparison_date = get_filter_date("lower")
+    if lower_comparison_date:
+        lower_comparison_date = transform_date(lower_comparison_date)
+        is_date_comparison = True
+    else:
+        lower_comparison_date = datetime(1, 1, 1, 0, 0, 0)
+
+    upper_comparison_date = get_filter_date("upper")
+    if upper_comparison_date:
+        upper_comparison_date = transform_date(upper_comparison_date)
+        is_date_comparison = True
+    else:
+        lower_comparison_date = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    with open(file_path, 'r', encoding='utf-8') as file:
+        html_content = file.read()
+
+    extract_and_save_divs_with_images(html_content, config['divider_regexp_pattern'], base_path, const.LOCAL_FACEBOOK_EXCEL_PATH, lower_comparison_date, upper_comparison_date, is_date_comparison)
+
+
 def case_run():
     print(cli['run_program'])
-
     type_of_web_extraction = get_web_extraction_choice()
 
     if type_of_web_extraction == "local-facebook":
 
-        get_path_to_local_facebook()
-        base_path = f"file:///{config['path_to_local_facebook']}/"
-        file_path = os.path.join(config['path_to_local_facebook'], "this_profile's_activity_across_facebook/posts/profile_posts_1.html")
-
-        config['divider_regexp_pattern'] = get_local_facebook_divide_choice()
-
-        is_date_comparison = False
-        lower_comparison_date = get_filter_date("lower")
-        if lower_comparison_date:
-            lower_comparison_date = transform_date(lower_comparison_date)
-            is_date_comparison = True
-        else:
-            lower_comparison_date = datetime(1, 1, 1, 0, 0, 0)
-
-        upper_comparison_date = get_filter_date("upper")
-        if upper_comparison_date:
-            upper_comparison_date = transform_date(upper_comparison_date)
-            is_date_comparison = True
-        else:
-            lower_comparison_date = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
-
-        with open(file_path, 'r', encoding='utf-8') as file:
-            html_content = file.read()
-
-        extract_and_save_parent_divs_with_images(html_content, config['divider_regexp_pattern'], base_path, const.LOCAL_FACEBOOK_EXCEL_PATH, lower_comparison_date, upper_comparison_date, is_date_comparison)
+        divide_local_facebook_and_fill_excel()
         config['pages_to_crawl_file'] = const.LOCAL_FACEBOOK_EXCEL_PATH
 
     else:
