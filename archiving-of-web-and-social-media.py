@@ -1,6 +1,16 @@
 """
 Created on Thu Aug 29 16:19:39 2024
 
+Experimentversion lö 22 mars 2025 med uppdaterade def create_xml_fgs och def run_web_extraction samt ny def convert_xml_to_csv.
+Uppdateringarna innebär att xml-filerna slås ihop till en och att en csv-fil skapas baserad på den sammanslagna xml-filen.
+Se #kommentarer.
+
+Exp.version må 24 mars 2025: Fixat efter diskussion möte så att de kombinerade filerna sparas i separat, parallell mapp.
+I def run_web_extraction:
+    folder_name_merged = "files_for_merged_files " + formatted_date_time
+    os.mkdir(folder_name_merged)
+Samt byta från folder_name till folder_name_merged på förekommande ställen.
+
  < Archiving-of-web-and-social-media: Takes screenshots of webpages and social media
  and converts it to tiff images for the purpose of archiving.>
      Copyright (C) 2024 Gislaveds Kommun
@@ -96,20 +106,19 @@ def save_pretty_xml_to_file(root, folder_name, xml_file_name):
         file.write(formatted_xml)
 
 
-def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basemetadata):
+def create_xml_fgs(url_and_metadata_for_website, formatted_date, tiff_image_name, folder_name, basemetadata, root=None):
     url = url_and_metadata_for_website[0]
     website = url_and_metadata_for_website[1]
-    root = ET.Element(
-        "Leveransobjekt",
-        attrib={
-            "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
-            "xsi:noNamespaceSchemaLocation": "FREDA-GS-Webbsidor-v1_0.xsd",
-            "xmlns": "freda"
-        }
-    )
 
-    # The order of the subelements is critical
-    document = ET.SubElement(root, "Dokument")
+    # Skapa Leveransobjekt för de enskilda xml-filerna
+    individual_leveransobjekt = ET.Element("Leveransobjekt", attrib={
+        "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
+        "xsi:noNamespaceSchemaLocation": "FREDA-GS-Webbsidor-v1_0.xsd",
+        "xmlns": "freda"
+    })
+
+    # Skapa Dokument för de enskilad xml-filerna
+    document = ET.SubElement(individual_leveransobjekt, "Dokument")
 
     ET.SubElement(document, "Organisation").text = str(basemetadata['value']['organisation'])
     ET.SubElement(document, "Arkivbildare").text = str(basemetadata['value']['arkivbildare'])
@@ -140,9 +149,23 @@ def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, 
     ET.SubElement(document, "Informationsdatum").text = formatted_date
     ET.SubElement(document, "Kommentar").text = str(basemetadata['value']['kommentar'])
 
-    ET.SubElement(root, "DokumentFilnamn").text = tiff_image_name
+    # Skapa DokumentFilnamn enskild
+    ET.SubElement(individual_leveransobjekt, "DokumentFilnamn").text = tiff_image_name
 
-    save_pretty_xml_to_file(root, folder_name, xml_file_name)
+    # Spara de enskilda xml-filerna
+    save_pretty_xml_to_file(individual_leveransobjekt, folder_name, tiff_image_name.replace('.tif', '.xml'))
+
+    # Skapa Leveransobjekt för kombinerad xml-fil, utan attributen
+    if root is not None:
+        combined_leveransobjekt = ET.SubElement(root, "Leveransobjekt")
+        combined_document = ET.SubElement(combined_leveransobjekt, "Dokument")
+
+        # Skapa Dokument för kombinerad, som ovan
+        for child in document:
+            combined_document.append(child)
+
+        # Skapa DokumentFilnamn för kombinerad
+        ET.SubElement(combined_leveransobjekt, "DokumentFilnamn").text = tiff_image_name
 
 
 def is_valid_xml(xml_file):
@@ -203,7 +226,7 @@ def create_package_creator_config(basemetadata, folder_name):
 
 def run_web_extraction(type_of_web_extraction):
     pages_as_lists = pd.read_excel(config['pages_to_crawl_file'], sheet_name=0).fillna("").values.tolist()
-
+    
     basemetadata = pd.read_excel(config['basemetadata_file'], sheet_name=0, index_col=0)
     basemetadata = prepare_and_clean_columns_and_index(basemetadata)
 
@@ -212,7 +235,11 @@ def run_web_extraction(type_of_web_extraction):
     formatted_date_time = today.strftime('%Y-%m-%d-%H-%M-%S')
 
     folder_name = "files for package creator " + formatted_date_time
+    # definiera mapp för de kombinerade filerna
+    folder_name_merged = "files_for_merged_files " + formatted_date_time
     os.mkdir(folder_name)
+    # skapa mappen för de kombinerade filerna
+    os.mkdir(folder_name_merged)
 
     if not os.path.isdir(PATH_TO_IMAGE_TEMP):
         os.mkdir(PATH_TO_IMAGE_TEMP)
@@ -225,26 +252,69 @@ def run_web_extraction(type_of_web_extraction):
         case "instagram":
             WebdriverClass.login_to_instagram()
 
-    for url_and_metadata_for_website in pages_as_lists:
+    root = ET.Element("root")  # Root för kombinerad
 
+    for url_and_metadata_for_website in pages_as_lists:
         url = url_and_metadata_for_website[0]
         tiff_image_name = create_tiff_screenshot(url, folder_name, type_of_web_extraction)
         print(f"Converted to tiff: {tiff_image_name}")
 
+        # Skapa enskild XML-fil
         xml_file_name = get_part_of_string(tiff_image_name, ".", 0) + ".xml"
-        create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basemetadata)
-        print(f"Created XML file: {xml_file_name}")
+        create_xml_fgs(url_and_metadata_for_website, formatted_date, tiff_image_name, folder_name, basemetadata)
+        print(f"Created individual XML file: {xml_file_name}")
 
-        xml_file_path = Path(folder_name) / xml_file_name
+        # Skapa kombinerad XML-fil
+        create_xml_fgs(url_and_metadata_for_website, formatted_date, tiff_image_name, folder_name, basemetadata, root)
 
-        if not is_valid_xml(xml_file_path):
-            print(f"xml not valid: {xml_file_path}")
-            break
-        else:
-            print("Validation successful.")
+    # Spara kombinerad
+    combined_xml_file_path = Path(folder_name_merged) / "combined_output.xml"
+    save_pretty_xml_to_file(root, folder_name_merged, "combined_output.xml")
+    print("Combined XML file created: combined_output.xml")
 
-    create_package_creator_config(basemetadata, folder_name)
+    # Kombined XML till CSV
+    convert_xml_to_csv(combined_xml_file_path, folder_name_merged)
 
+def convert_xml_to_csv(xml_file_path, folder_name_merged):
+    tree = ET.parse(xml_file_path)
+    root = tree.getroot()
+
+    data = []
+
+    # Iterera leveransobjektet
+    for leveransobjekt in root.findall("Leveransobjekt"):
+        row_data = {}
+        for document in leveransobjekt.findall("Dokument"):
+            for elem in document:
+                row_data[elem.tag] = elem.text
+            
+            # Extract values from ProcessStrukturerat
+            #process_struct = document.find("ProcessStrukturerat")
+            #if process_struct is not None:
+                #for child in process_struct:
+                    #row_data[child.tag] = child.text
+                    
+            # Fånga in nivå-värdena. Undviker framtida problem med csv:n genom att trolla bort bokstaven å. Borde kanske ha fixat detta redan i kombinerad xml
+            process_struct = document.find("ProcessStrukturerat")
+            if process_struct is not None:
+                row_data["ProcessStrukturerat_niva1"] = process_struct.find(".//nivå1").text if process_struct.find(".//nivå1") is not None else None
+                row_data["ProcessStrukturerat_niva2"] = process_struct.find(".//nivå2").text if process_struct.find(".//nivå2") is not None else None
+                row_data["ProcessStrukturerat_niva3"] = process_struct.find(".//nivå3").text if process_struct.find(".//nivå3") is not None else None
+            
+            # DokumentFilnamn
+            dokument_filnamn = leveransobjekt.find("DokumentFilnamn")
+            if dokument_filnamn is not None:
+                row_data["DokumentFilnamn"] = dokument_filnamn.text
+        
+        data.append(row_data)
+
+    # Skapa df
+    df = pd.DataFrame(data)
+
+    # DataFrame till CSV
+    csv_file_path = Path(folder_name_merged) / "combined_output.csv"
+    df.to_csv(csv_file_path, sep=';', index=False, encoding='utf-8')
+    print(f"Combined CSV file created: {csv_file_path}")
 
 def case_four_systemnamn():
     systemnamn_message = f"Your current Systemnamn is: {config['systemnamn']}"
