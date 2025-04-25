@@ -1,5 +1,6 @@
 import os
 import json
+import time
 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -62,6 +63,7 @@ class WebdriverClass:
     def take_screenshot(cls, output_path):
         driver = cls.get_driver()
         driver.implicitly_wait(const.TIMEOUT_SECONDS)
+        time.sleep(int(const.TIMEOUT_SECONDS_SHORT))
         page_height = cls._driver.execute_script("return document.documentElement.scrollHeight") + 150
         driver.set_window_size(const.WIDTH_Of_SCREENSHOT, page_height)
         driver.save_screenshot(output_path)
