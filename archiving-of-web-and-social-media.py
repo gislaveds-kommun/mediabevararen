@@ -87,8 +87,8 @@ def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, 
     url = url_and_metadata_for_website[0]
     title, keywords, description = WebdriverClass.get_webpage_metadata(url)
 
-    data = basemetadata.to_dict()['value']
-    additional_data = {
+    metadata = basemetadata.to_dict()['value']
+    additional_metadata = {
         "arkiveringsdatum": formatted_date,
         "site": get_domain_from_url(url),
         "webbsida": url_and_metadata_for_website[1],
@@ -100,10 +100,10 @@ def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, 
         "informationsdatum": formatted_date,
         "dokumentfilnamn": tiff_image_name
     }
-    data.update(additional_data)
+    metadata.update(additional_metadata)
     xml_file_path = Path(folder_name) / xml_file_name
-    metadata = Metadata(**data)
-    metadata.save_xml_to_file(xml_file_path)
+    metadata_instance = Metadata(**metadata)
+    metadata_instance.save_xml_to_file(xml_file_path)
 
 
 def is_valid_xml(xml_file):

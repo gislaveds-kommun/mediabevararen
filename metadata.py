@@ -20,7 +20,6 @@ class Metadata:
     personuppgifter: str
     forskningsdata: str
     kommentar: str
-
     arkiveringsdatum: datetime
     site: str
     webbsida: str
