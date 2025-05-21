@@ -44,6 +44,7 @@ from constants import DELIVERY
 from constants import CLI_STRINGS as cli
 from webdriver_class import WebdriverClass
 from exception import LoginException
+from metadata import Metadata
 
 
 def convert_png_to_tiff(input_path_png, output_path_tiff):
@@ -97,6 +98,9 @@ def save_pretty_xml_to_file(root, folder_name, xml_file_name):
 
 
 def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basemetadata):
+
+
+def create_xml_fgs_old(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basemetadata):
     url = url_and_metadata_for_website[0]
     website = url_and_metadata_for_website[1]
     root = ET.Element(
