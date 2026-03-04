@@ -36,8 +36,6 @@ import os
 import sys
 import re
 import traceback
-import xml.etree.ElementTree as ET
-import xml.dom.minidom
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
@@ -54,6 +52,7 @@ from constants import DELIVERY
 from constants import CLI_STRINGS as cli
 from webdriver_class import WebdriverClass
 from exception import LoginException
+from metadata import Metadata
 
 
 def convert_png_to_tiff(input_path_png, output_path_tiff):
@@ -71,7 +70,7 @@ def get_part_of_string(input_string, split_by, index):
     try:
         return input_string.split(split_by)[index]
     except IndexError:
-        raise IndexError(f"Index {index} is out of range for the split string.") 
+        raise IndexError(f"Index {index} is out of range for the split string.")
 
 
 def create_file_name(url):
@@ -94,78 +93,27 @@ def prepare_and_clean_columns_and_index(data):
     return data
 
 
-def save_pretty_xml_to_file(root, folder_name, xml_file_name):
-    declaration = '<?xml version="1.0" encoding="UTF-8"?>\n'
-    xml_string = declaration + ET.tostring(root, encoding="utf-8", method="xml").decode()
-
-    dom = xml.dom.minidom.parseString(xml_string)
-    formatted_xml = dom.toprettyxml(indent="  ", encoding="UTF-8").decode("UTF-8")
-
-    xml_file_path = Path(folder_name) / xml_file_name
-    with open(xml_file_path, "w", encoding="utf-8") as file:
-        file.write(formatted_xml)
-
-
-def create_xml_fgs(url_and_metadata_for_website, formatted_date, tiff_image_name, folder_name, basemetadata, root=None):
+def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basemetadata):
     url = url_and_metadata_for_website[0]
-    website = url_and_metadata_for_website[1]
-
-    # Skapa Leveransobjekt för de enskilda xml-filerna
-    individual_leveransobjekt = ET.Element("Leveransobjekt", attrib={
-        "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
-        "xsi:noNamespaceSchemaLocation": "FREDA-GS-Webbsidor-v1_0.xsd",
-        "xmlns": "freda"
-    })
-
-    # Skapa Dokument för de enskilad xml-filerna
-    document = ET.SubElement(individual_leveransobjekt, "Dokument")
-
-    ET.SubElement(document, "Organisation").text = str(basemetadata['value']['organisation'])
-    ET.SubElement(document, "Arkivbildare").text = str(basemetadata['value']['arkivbildare'])
-    ET.SubElement(document, "Arkivbildarenhet").text = str(basemetadata['value']['arkivbildarenhet'])
-    ET.SubElement(document, "Arkiv").text = str(basemetadata['value']['arkiv'])
-    ET.SubElement(document, "Serie").text = str(basemetadata['value']['serie'])
-    ET.SubElement(document, "KlassificeringsstrukturText").text = str(basemetadata['value']['klassificeringsstrukturtext'])
-
-    process_struct = ET.SubElement(document, "ProcessStrukturerat")            
-    ET.SubElement(process_struct, "nivå1").text = str(basemetadata['value']['nivå1'])
-    ET.SubElement(process_struct, "nivå2").text = str(basemetadata['value']['nivå2'])
-    ET.SubElement(process_struct, "nivå3").text = str(basemetadata['value']['nivå3'])
-
-    ET.SubElement(document, "Ursprung").text = str(basemetadata['value']['ursprung'])
-    ET.SubElement(document, "Arkiveringsdatum").text = formatted_date
-    ET.SubElement(document, "Sekretess").text = str(basemetadata['value']['sekretess'])
-    ET.SubElement(document, "Personuppgifter").text = str(basemetadata['value']['personuppgifter'])
-    ET.SubElement(document, "Forskningsdata").text = str(basemetadata['value']['forskningsdata'])
-    ET.SubElement(document, "Site").text = get_domain_from_url(url)
-    ET.SubElement(document, "Webbsida").text = website
-    ET.SubElement(document, "Webbadress").text = url
-
     title, keywords, description = WebdriverClass.get_webpage_metadata(url)
-    ET.SubElement(document, "WebPageTitle").text = title
-    ET.SubElement(document, "WebPageKeywords").text = keywords
-    ET.SubElement(document, "WebPageDescription").text = description
-    ET.SubElement(document, "WebPageCurrentURL").text = url
-    ET.SubElement(document, "Informationsdatum").text = formatted_date
-    ET.SubElement(document, "Kommentar").text = str(basemetadata['value']['kommentar'])
 
-    # Skapa DokumentFilnamn enskild
-    ET.SubElement(individual_leveransobjekt, "DokumentFilnamn").text = tiff_image_name
-
-    # Spara de enskilda xml-filerna
-    save_pretty_xml_to_file(individual_leveransobjekt, folder_name, tiff_image_name.replace('.tif', '.xml'))
-
-    # Skapa Leveransobjekt för kombinerad xml-fil, utan attributen
-    if root is not None:
-        combined_leveransobjekt = ET.SubElement(root, "Leveransobjekt")
-        combined_document = ET.SubElement(combined_leveransobjekt, "Dokument")
-
-        # Skapa Dokument för kombinerad, som ovan
-        for child in document:
-            combined_document.append(child)
-
-        # Skapa DokumentFilnamn för kombinerad
-        ET.SubElement(combined_leveransobjekt, "DokumentFilnamn").text = tiff_image_name
+    metadata = basemetadata.to_dict()['value']
+    additional_metadata = {
+        "arkiveringsdatum": formatted_date,
+        "site": get_domain_from_url(url),
+        "webbsida": url_and_metadata_for_website[1],
+        "webbadress": url,
+        "webpagetitle": title,
+        "webpagekeywords": keywords,
+        "webpagedescription": description,
+        "webpagecurrenturl": url,
+        "informationsdatum": formatted_date,
+        "dokumentfilnamn": tiff_image_name
+    }
+    metadata.update(additional_metadata)
+    xml_file_path = Path(folder_name) / xml_file_name
+    metadata_instance = Metadata(**metadata)
+    metadata_instance.save_xml_to_file(xml_file_path)
 
 
 def is_valid_xml(xml_file):
