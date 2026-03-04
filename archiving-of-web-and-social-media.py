@@ -92,8 +92,7 @@ def prepare_and_clean_columns_and_index(data):
 
     return data
 
-
-def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basemetadata):
+def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basemetadata, combined_root=None):
     url = url_and_metadata_for_website[0]
     title, keywords, description = WebdriverClass.get_webpage_metadata(url)
 
@@ -114,6 +113,9 @@ def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, 
     xml_file_path = Path(folder_name) / xml_file_name
     metadata_instance = Metadata(**metadata)
     metadata_instance.save_xml_to_file(xml_file_path)
+
+    if combined_root is not None:
+        combined_root.append(metadata_instance.to_xml())
 
 
 def is_valid_xml(xml_file):
@@ -200,7 +202,7 @@ def run_web_extraction(type_of_web_extraction):
         case "instagram":
             WebdriverClass.login_to_instagram()
 
-    root = ET.Element("root")  # Root för kombinerad
+    root = etree.Element("root")  # Root för kombinerad
 
     for url_and_metadata_for_website in pages_as_lists:
         url = url_and_metadata_for_website[0]
@@ -209,22 +211,27 @@ def run_web_extraction(type_of_web_extraction):
 
         # Skapa enskild XML-fil
         xml_file_name = get_part_of_string(tiff_image_name, ".", 0) + ".xml"
-        create_xml_fgs(url_and_metadata_for_website, formatted_date, tiff_image_name, folder_name, basemetadata)
+        create_xml_fgs(
+            url_and_metadata_for_website,
+            formatted_date,
+            xml_file_name,
+            tiff_image_name,
+            folder_name,
+            basemetadata,
+            root
+        )
         print(f"Created individual XML file: {xml_file_name}")
-
-        # Skapa kombinerad XML-fil
-        create_xml_fgs(url_and_metadata_for_website, formatted_date, tiff_image_name, folder_name, basemetadata, root)
 
     # Spara kombinerad
     combined_xml_file_path = Path(folder_name_merged) / "combined_output.xml"
-    save_pretty_xml_to_file(root, folder_name_merged, "combined_output.xml")
+    Metadata.save_pretty_xml_to_file(root, folder_name_merged, "combined_output.xml")
     print("Combined XML file created: combined_output.xml")
 
     # Kombined XML till CSV
     convert_xml_to_csv(combined_xml_file_path, folder_name_merged)
 
 def convert_xml_to_csv(xml_file_path, folder_name_merged):
-    tree = ET.parse(xml_file_path)
+    tree = etree.parse(xml_file_path)
     root = tree.getroot()
 
     data = []
