@@ -42,7 +42,7 @@ from urllib.parse import urlparse
 
 import pandas as pd
 from PIL import Image
-from lxml import etree
+import lxml.etree as etree
 from openpyxl import Workbook
 from dotenv import load_dotenv
 
