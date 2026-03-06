@@ -54,6 +54,10 @@ from webdriver_class import WebdriverClass
 from exception import LoginException
 from metadata import Metadata
 
+DEBUG = False
+SCRIPT_DIR = Path(__file__).resolve().parent
+DEBUG_OUTPUT_DIR = SCRIPT_DIR / "tests"
+
 
 def convert_png_to_tiff(input_path_png, output_path_tiff):
     image = Image.open(input_path_png)
@@ -131,14 +135,14 @@ def is_valid_xml(xml_file):
     return False
 
 
-def create_tiff_screenshot(url, folder_name, type_of_web_extraction):
+def create_tiff_screenshot(url, folder_name, type_of_web_extraction, image_temp_dir):
     filename = create_file_name(url)
     print(f"Processing {filename}")
-    output_path_png = "image_temp/" + filename + '.png'
+    output_path_png = Path(image_temp_dir) / f"{filename}.png"
     tiff_image_name = filename + '.tif'
-    output_path_tiff = folder_name + "/" + tiff_image_name
+    output_path_tiff = Path(folder_name) / tiff_image_name
 
-    WebdriverClass.capture_full_page_screenshot_with_custom_width(output_path_png, type_of_web_extraction, url)
+    WebdriverClass.capture_full_page_screenshot_with_custom_width(str(output_path_png), type_of_web_extraction, url)
 
     convert_png_to_tiff(output_path_png, output_path_tiff)
 
@@ -183,15 +187,18 @@ def run_web_extraction(type_of_web_extraction):
     formatted_date = today.strftime('%Y-%m-%d')
     formatted_date_time = today.strftime('%Y-%m-%d-%H-%M-%S')
 
-    folder_name = "files for package creator " + formatted_date_time
+    output_base_dir = DEBUG_OUTPUT_DIR if DEBUG else Path.cwd()
+    output_base_dir.mkdir(parents=True, exist_ok=True)
+
+    folder_name = output_base_dir / ("files for package creator " + formatted_date_time)
     # definiera mapp för de kombinerade filerna
-    folder_name_merged = "files_for_merged_files " + formatted_date_time
+    folder_name_merged = output_base_dir / ("files_for_merged_files " + formatted_date_time)
     os.mkdir(folder_name)
     # skapa mappen för de kombinerade filerna
     os.mkdir(folder_name_merged)
 
-    if not os.path.isdir(PATH_TO_IMAGE_TEMP):
-        os.mkdir(PATH_TO_IMAGE_TEMP)
+    image_temp_dir = (output_base_dir / PATH_TO_IMAGE_TEMP) if DEBUG else Path(PATH_TO_IMAGE_TEMP)
+    image_temp_dir.mkdir(parents=True, exist_ok=True)
 
     match type_of_web_extraction.lower():
         case "facebook":
@@ -208,7 +215,7 @@ def run_web_extraction(type_of_web_extraction):
     try:
         for url_and_metadata_for_website in pages_as_lists:
             url = url_and_metadata_for_website[0]
-            tiff_image_name = create_tiff_screenshot(url, folder_name, type_of_web_extraction)
+            tiff_image_name = create_tiff_screenshot(url, folder_name, type_of_web_extraction, image_temp_dir)
             print(f"Converted to tiff: {tiff_image_name}")
 
             # Skapa enskild XML-fil
