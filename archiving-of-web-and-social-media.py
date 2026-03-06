@@ -32,10 +32,10 @@ Samt byta från folder_name till folder_name_merged på förekommande ställen.
 """
 
 import json
-import os
 import sys
 import re
 import traceback
+import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
@@ -54,9 +54,12 @@ from webdriver_class import WebdriverClass
 from exception import LoginException
 from metadata import Metadata
 
-DEBUG = False
+DEBUG = True
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEBUG_OUTPUT_DIR = SCRIPT_DIR / "tests"
+XML_OUTPUT_ROOT_DIR_NAME = "xml_output"
+INDIVIDUAL_XML_DIR_NAME = "individual_xml"
+MERGED_XML_DIR_NAME = "merged_xml"
 
 
 def convert_png_to_tiff(input_path_png, output_path_tiff):
@@ -95,6 +98,30 @@ def prepare_and_clean_columns_and_index(data):
     data.index = data.index.str.strip().str.lower()
 
     return data
+
+
+def create_output_directories(output_base_dir, formatted_date_time):
+    files_output_dir = output_base_dir / ("files for package creator " + formatted_date_time)
+    xml_output_root_dir = output_base_dir / (XML_OUTPUT_ROOT_DIR_NAME + " " + formatted_date_time)
+    individual_xml_dir = xml_output_root_dir / INDIVIDUAL_XML_DIR_NAME
+    merged_xml_dir = xml_output_root_dir / MERGED_XML_DIR_NAME
+
+    files_output_dir.mkdir(parents=True, exist_ok=True)
+    individual_xml_dir.mkdir(parents=True, exist_ok=True)
+    merged_xml_dir.mkdir(parents=True, exist_ok=True)
+
+    return files_output_dir, individual_xml_dir, merged_xml_dir
+
+
+def create_combined_xml_file(xml_elements, merged_xml_dir):
+    root = ET.Element("root")
+    for xml_element in xml_elements:
+        root.append(xml_element)
+
+    combined_xml_name = "combined_output.xml"
+    Metadata.save_pretty_xml_to_file(root, merged_xml_dir, combined_xml_name)
+    print(f"Combined XML file created: {combined_xml_name}")
+    return merged_xml_dir / combined_xml_name
 
 def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basemetadata):
     url = url_and_metadata_for_website[0]
@@ -179,23 +206,20 @@ def create_package_creator_config(basemetadata, folder_name):
 
 def run_web_extraction(type_of_web_extraction):
     pages_as_lists = pd.read_excel(config['pages_to_crawl_file'], sheet_name=0).fillna("").values.tolist()
-    
     basemetadata = pd.read_excel(config['basemetadata_file'], sheet_name=0, index_col=0)
     basemetadata = prepare_and_clean_columns_and_index(basemetadata)
 
-    today = datetime.now()
-    formatted_date = today.strftime('%Y-%m-%d')
-    formatted_date_time = today.strftime('%Y-%m-%d-%H-%M-%S')
+    now = datetime.now()
+    formatted_date = now.strftime('%Y-%m-%d')
+    formatted_date_time = now.strftime('%Y-%m-%d-%H-%M-%S')
 
     output_base_dir = DEBUG_OUTPUT_DIR if DEBUG else Path.cwd()
     output_base_dir.mkdir(parents=True, exist_ok=True)
 
-    folder_name = output_base_dir / ("files for package creator " + formatted_date_time)
-    # definiera mapp för de kombinerade filerna
-    folder_name_merged = output_base_dir / ("files_for_merged_files " + formatted_date_time)
-    os.mkdir(folder_name)
-    # skapa mappen för de kombinerade filerna
-    os.mkdir(folder_name_merged)
+    files_output_dir, individual_xml_dir, merged_xml_dir = create_output_directories(
+        output_base_dir,
+        formatted_date_time
+    )
 
     image_temp_dir = (output_base_dir / PATH_TO_IMAGE_TEMP) if DEBUG else Path(PATH_TO_IMAGE_TEMP)
     image_temp_dir.mkdir(parents=True, exist_ok=True)
@@ -208,48 +232,40 @@ def run_web_extraction(type_of_web_extraction):
         case "instagram":
             WebdriverClass.login_to_instagram()
 
-    temp_xml_elements = []
-    combined_xml_file_path = Path(folder_name_merged) / "combined_output.xml"
+    xml_elements = []
     extraction_error = None
 
     try:
-        for url_and_metadata_for_website in pages_as_lists:
-            url = url_and_metadata_for_website[0]
-            tiff_image_name = create_tiff_screenshot(url, folder_name, type_of_web_extraction, image_temp_dir)
+        for page_data in pages_as_lists:
+            url = page_data[0]
+            tiff_image_name = create_tiff_screenshot(url, files_output_dir, type_of_web_extraction, image_temp_dir)
             print(f"Converted to tiff: {tiff_image_name}")
 
-            # Skapa enskild XML-fil
             xml_file_name = get_part_of_string(tiff_image_name, ".", 0) + ".xml"
             xml_element = create_xml_fgs(
-                url_and_metadata_for_website,
+                page_data,
                 formatted_date,
                 xml_file_name,
                 tiff_image_name,
-                folder_name,
+                individual_xml_dir,
                 basemetadata
             )
-            temp_xml_elements.append(xml_element)
+            xml_elements.append(xml_element)
             print(f"Created individual XML file: {xml_file_name}")
     except Exception as e:
         extraction_error = e
         print(f"Extraction interrupted due to error: {e}")
     finally:
-        # Spara kombinerad XML med alla skapade XML-element hittills
-        root = etree.Element("root")
-        for xml_element in temp_xml_elements:
-            root.append(xml_element)
+        combined_xml_file_path = create_combined_xml_file(xml_elements, merged_xml_dir)
 
-        Metadata.save_pretty_xml_to_file(root, folder_name_merged, "combined_output.xml")
-        print("Combined XML file created: combined_output.xml")
-
-        # Kombinerad XML till CSV om data finns
-        if temp_xml_elements:
-            convert_xml_to_csv(combined_xml_file_path, folder_name_merged)
+        if xml_elements:
+            convert_xml_to_csv(combined_xml_file_path, merged_xml_dir)
         else:
             print("No XML entries were created; skipped CSV export.")
 
         if extraction_error is not None:
             raise extraction_error
+
 
 def convert_xml_to_csv(xml_file_path, folder_name_merged):
     tree = etree.parse(xml_file_path)
@@ -428,7 +444,7 @@ def start_program():
         print("You can choose one of the following actions:")
         print("'Exit' or ctrl+c to quit at any time.")
         print("'R' to run web extraction")
-        print("1: to toogle Headless setting")
+        print(f"1: to toggle Headless setting ({'ACTIVE' if config['headless_for_full_height'] else 'INACTIVE'})")
         print("2: to change XSD-file")
         print("3: to change Contract-file")
         print("4: to change Systemnamn")
@@ -481,4 +497,5 @@ if __name__ == "__main__":
         traceback.print_exc()
     finally:
         exit_program()
+
 
