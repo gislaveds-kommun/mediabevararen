@@ -92,7 +92,7 @@ def prepare_and_clean_columns_and_index(data):
 
     return data
 
-def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basemetadata, combined_root=None):
+def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basemetadata):
     url = url_and_metadata_for_website[0]
     title, keywords, description = WebdriverClass.get_webpage_metadata(url)
 
@@ -114,8 +114,7 @@ def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, 
     metadata_instance = Metadata(**metadata)
     metadata_instance.save_xml_to_file(xml_file_path)
 
-    if combined_root is not None:
-        combined_root.append(metadata_instance.to_xml())
+    return metadata_instance.to_xml()
 
 
 def is_valid_xml(xml_file):
@@ -202,33 +201,48 @@ def run_web_extraction(type_of_web_extraction):
         case "instagram":
             WebdriverClass.login_to_instagram()
 
-    root = etree.Element("root")  # Root för kombinerad
-
-    for url_and_metadata_for_website in pages_as_lists:
-        url = url_and_metadata_for_website[0]
-        tiff_image_name = create_tiff_screenshot(url, folder_name, type_of_web_extraction)
-        print(f"Converted to tiff: {tiff_image_name}")
-
-        # Skapa enskild XML-fil
-        xml_file_name = get_part_of_string(tiff_image_name, ".", 0) + ".xml"
-        create_xml_fgs(
-            url_and_metadata_for_website,
-            formatted_date,
-            xml_file_name,
-            tiff_image_name,
-            folder_name,
-            basemetadata,
-            root
-        )
-        print(f"Created individual XML file: {xml_file_name}")
-
-    # Spara kombinerad
+    temp_xml_elements = []
     combined_xml_file_path = Path(folder_name_merged) / "combined_output.xml"
-    Metadata.save_pretty_xml_to_file(root, folder_name_merged, "combined_output.xml")
-    print("Combined XML file created: combined_output.xml")
+    extraction_error = None
 
-    # Kombined XML till CSV
-    convert_xml_to_csv(combined_xml_file_path, folder_name_merged)
+    try:
+        for url_and_metadata_for_website in pages_as_lists:
+            url = url_and_metadata_for_website[0]
+            tiff_image_name = create_tiff_screenshot(url, folder_name, type_of_web_extraction)
+            print(f"Converted to tiff: {tiff_image_name}")
+
+            # Skapa enskild XML-fil
+            xml_file_name = get_part_of_string(tiff_image_name, ".", 0) + ".xml"
+            xml_element = create_xml_fgs(
+                url_and_metadata_for_website,
+                formatted_date,
+                xml_file_name,
+                tiff_image_name,
+                folder_name,
+                basemetadata
+            )
+            temp_xml_elements.append(xml_element)
+            print(f"Created individual XML file: {xml_file_name}")
+    except Exception as e:
+        extraction_error = e
+        print(f"Extraction interrupted due to error: {e}")
+    finally:
+        # Spara kombinerad XML med alla skapade XML-element hittills
+        root = etree.Element("root")
+        for xml_element in temp_xml_elements:
+            root.append(xml_element)
+
+        Metadata.save_pretty_xml_to_file(root, folder_name_merged, "combined_output.xml")
+        print("Combined XML file created: combined_output.xml")
+
+        # Kombinerad XML till CSV om data finns
+        if temp_xml_elements:
+            convert_xml_to_csv(combined_xml_file_path, folder_name_merged)
+        else:
+            print("No XML entries were created; skipped CSV export.")
+
+        if extraction_error is not None:
+            raise extraction_error
 
 def convert_xml_to_csv(xml_file_path, folder_name_merged):
     tree = etree.parse(xml_file_path)
@@ -460,3 +474,4 @@ if __name__ == "__main__":
         traceback.print_exc()
     finally:
         exit_program()
+
