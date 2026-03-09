@@ -33,8 +33,6 @@ Samt byta från folder_name till folder_name_merged på förekommande ställen.
 
 import json
 import sys
-import re
-import shutil
 import traceback
 import xml.etree.ElementTree as ET
 from datetime import datetime
@@ -58,7 +56,7 @@ from metadata import Metadata
 DEBUG = True
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEBUG_OUTPUT_DIR = SCRIPT_DIR / "tests"
-XML_OUTPUT_ROOT_DIR_NAME = "xml_output"
+XML_OUTPUT_ROOT_DIR_NAME = "folder xml merged"
 
 
 def convert_png_to_tiff(input_path_png, output_path_tiff):
