@@ -55,7 +55,7 @@ from webdriver_class import WebdriverClass
 from exception import LoginException
 from metadata import Metadata
 
-DEBUG = True
+DEBUG = False
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEBUG_OUTPUT_DIR = SCRIPT_DIR / "tests"
 XML_OUTPUT_ROOT_DIR_NAME = "folder xml merged"
