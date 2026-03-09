@@ -279,41 +279,60 @@ def convert_xml_to_csv(xml_file_path, folder_name_merged):
 
     data = []
 
-    # Iterera leveransobjektet
-    for leveransobjekt in root.findall("Leveransobjekt"):
+    def local_name(tag_name):
+        return tag_name.split("}", 1)[1] if "}" in tag_name else tag_name
+
+    # merged XML contains default namespace "freda".
+    leveransobjekt_list = [
+        elem for elem in root.iter()
+        if local_name(elem.tag) == "Leveransobjekt"
+    ]
+
+    for leveransobjekt in leveransobjekt_list:
         row_data = {}
-        for document in leveransobjekt.findall("Dokument"):
+        documents = [
+            elem for elem in leveransobjekt
+            if local_name(elem.tag) == "Dokument"
+        ]
+
+        for document in documents:
             for elem in document:
-                row_data[elem.tag] = elem.text
-            
-            # Extract values from ProcessStrukturerat
-            #process_struct = document.find("ProcessStrukturerat")
-            #if process_struct is not None:
-                #for child in process_struct:
-                    #row_data[child.tag] = child.text
-                    
-            # Fånga in nivå-värdena. Undviker framtida problem med csv:n genom att trolla bort bokstaven å. Borde kanske ha fixat detta redan i kombinerad xml
-            process_struct = document.find("ProcessStrukturerat")
+                if len(elem):
+                    continue
+                row_data[local_name(elem.tag)] = elem.text
+
+            process_struct = next(
+                (elem for elem in document if local_name(elem.tag) == "ProcessStrukturerat"),
+                None
+            )
             if process_struct is not None:
-                row_data["ProcessStrukturerat_niva1"] = process_struct.find(".//nivå1").text if process_struct.find(".//nivå1") is not None else None
-                row_data["ProcessStrukturerat_niva2"] = process_struct.find(".//nivå2").text if process_struct.find(".//nivå2") is not None else None
-                row_data["ProcessStrukturerat_niva3"] = process_struct.find(".//nivå3").text if process_struct.find(".//nivå3") is not None else None
-            
-            # DokumentFilnamn
-            dokument_filnamn = leveransobjekt.find("DokumentFilnamn")
+                level_values = {
+                    local_name(child.tag): child.text
+                    for child in process_struct
+                }
+                # creating fallback cause of encoding. å is encoded as Ã¥ sometimes
+                # this will take å if it exists, otherwise it'll try to seawrch for Ã¥
+                row_data["ProcessStrukturerat_niva1"] = level_values.get("nivå1", level_values.get("nivÃ¥1"))
+                row_data["ProcessStrukturerat_niva2"] = level_values.get("nivå2", level_values.get("nivÃ¥2"))
+                row_data["ProcessStrukturerat_niva3"] = level_values.get("nivå3", level_values.get("nivÃ¥3"))
+
+            dokument_filnamn = next(
+                (elem for elem in leveransobjekt if local_name(elem.tag) == "DokumentFilnamn"),
+                None
+            )
             if dokument_filnamn is not None:
                 row_data["DokumentFilnamn"] = dokument_filnamn.text
-        
-        data.append(row_data)
 
-    # Skapa df
+        if row_data:
+            data.append(row_data)
+
+    # skapa df
     df = pd.DataFrame(data)
 
-    # DataFrame till CSV
+    # DataFrame to CSV
     csv_file_path = Path(folder_name_merged) / "combined_output.csv"
     df.to_csv(csv_file_path, sep=';', index=False, encoding='utf-8')
     print(f"Combined CSV file created: {csv_file_path}")
-
 def case_four_systemnamn():
     systemnamn_message = f"Your current Systemnamn is: {config['systemnamn']}"
     if not config['systemnamn']:
