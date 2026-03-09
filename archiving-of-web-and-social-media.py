@@ -34,6 +34,7 @@ Samt byta från folder_name till folder_name_merged på förekommande ställen.
 import json
 import sys
 import re
+import shutil
 import traceback
 import xml.etree.ElementTree as ET
 from datetime import datetime
@@ -58,8 +59,6 @@ DEBUG = True
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEBUG_OUTPUT_DIR = SCRIPT_DIR / "tests"
 XML_OUTPUT_ROOT_DIR_NAME = "xml_output"
-INDIVIDUAL_XML_DIR_NAME = "individual_xml"
-MERGED_XML_DIR_NAME = "merged_xml"
 
 
 def convert_png_to_tiff(input_path_png, output_path_tiff):
@@ -103,25 +102,22 @@ def prepare_and_clean_columns_and_index(data):
 def create_output_directories(output_base_dir, formatted_date_time):
     files_output_dir = output_base_dir / ("files for package creator " + formatted_date_time)
     xml_output_root_dir = output_base_dir / (XML_OUTPUT_ROOT_DIR_NAME + " " + formatted_date_time)
-    individual_xml_dir = xml_output_root_dir / INDIVIDUAL_XML_DIR_NAME
-    merged_xml_dir = xml_output_root_dir / MERGED_XML_DIR_NAME
 
     files_output_dir.mkdir(parents=True, exist_ok=True)
-    individual_xml_dir.mkdir(parents=True, exist_ok=True)
-    merged_xml_dir.mkdir(parents=True, exist_ok=True)
+    xml_output_root_dir.mkdir(parents=True, exist_ok=True)
 
-    return files_output_dir, individual_xml_dir, merged_xml_dir
+    return files_output_dir, xml_output_root_dir
 
 
-def create_combined_xml_file(xml_elements, merged_xml_dir):
+def create_combined_xml_file(xml_elements, xml_output_root_dir):
     root = ET.Element("root")
     for xml_element in xml_elements:
         root.append(xml_element)
 
     combined_xml_name = "combined_output.xml"
-    Metadata.save_pretty_xml_to_file(root, merged_xml_dir, combined_xml_name)
+    Metadata.save_pretty_xml_to_file(root, xml_output_root_dir, combined_xml_name)
     print(f"Combined XML file created: {combined_xml_name}")
-    return merged_xml_dir / combined_xml_name
+    return xml_output_root_dir / combined_xml_name
 
 def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basemetadata):
     url = url_and_metadata_for_website[0]
@@ -162,16 +158,18 @@ def is_valid_xml(xml_file):
     return False
 
 
-def create_tiff_screenshot(url, folder_name, type_of_web_extraction, image_temp_dir):
+def create_tiff_screenshot(url, package_creator_dir, xml_output_root_dir, type_of_web_extraction, image_temp_dir):
     filename = create_file_name(url)
     print(f"Processing {filename}")
     output_path_png = Path(image_temp_dir) / f"{filename}.png"
     tiff_image_name = filename + '.tif'
-    output_path_tiff = Path(folder_name) / tiff_image_name
+    output_path_tiff_package = Path(package_creator_dir) / tiff_image_name
+    output_path_tiff_xml_output = Path(xml_output_root_dir) / tiff_image_name
 
     WebdriverClass.capture_full_page_screenshot_with_custom_width(str(output_path_png), type_of_web_extraction, url)
 
-    convert_png_to_tiff(output_path_png, output_path_tiff)
+    convert_png_to_tiff(output_path_png, output_path_tiff_package)
+    shutil.copy2(output_path_tiff_package, output_path_tiff_xml_output)
 
     return tiff_image_name
 
@@ -216,7 +214,7 @@ def run_web_extraction(type_of_web_extraction):
     output_base_dir = DEBUG_OUTPUT_DIR if DEBUG else Path.cwd()
     output_base_dir.mkdir(parents=True, exist_ok=True)
 
-    files_output_dir, individual_xml_dir, merged_xml_dir = create_output_directories(
+    files_output_dir, xml_output_root_dir = create_output_directories(
         output_base_dir,
         formatted_date_time
     )
@@ -238,7 +236,13 @@ def run_web_extraction(type_of_web_extraction):
     try:
         for page_data in pages_as_lists:
             url = page_data[0]
-            tiff_image_name = create_tiff_screenshot(url, files_output_dir, type_of_web_extraction, image_temp_dir)
+            tiff_image_name = create_tiff_screenshot(
+                url,
+                files_output_dir,
+                xml_output_root_dir,
+                type_of_web_extraction,
+                image_temp_dir
+            )
             print(f"Converted to tiff: {tiff_image_name}")
 
             xml_file_name = get_part_of_string(tiff_image_name, ".", 0) + ".xml"
@@ -247,7 +251,7 @@ def run_web_extraction(type_of_web_extraction):
                 formatted_date,
                 xml_file_name,
                 tiff_image_name,
-                individual_xml_dir,
+                files_output_dir,
                 basemetadata
             )
             xml_elements.append(xml_element)
@@ -256,12 +260,14 @@ def run_web_extraction(type_of_web_extraction):
         extraction_error = e
         print(f"Extraction interrupted due to error: {e}")
     finally:
-        combined_xml_file_path = create_combined_xml_file(xml_elements, merged_xml_dir)
+        combined_xml_file_path = create_combined_xml_file(xml_elements, xml_output_root_dir)
 
         if xml_elements:
-            convert_xml_to_csv(combined_xml_file_path, merged_xml_dir)
+            convert_xml_to_csv(combined_xml_file_path, xml_output_root_dir)
         else:
             print("No XML entries were created; skipped CSV export.")
+
+        shutil.rmtree(image_temp_dir, ignore_errors=True)
 
         if extraction_error is not None:
             raise extraction_error
