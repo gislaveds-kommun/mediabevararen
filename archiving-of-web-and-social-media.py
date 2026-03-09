@@ -33,6 +33,8 @@ Samt byta från folder_name till folder_name_merged på förekommande ställen.
 
 import json
 import sys
+import re
+import shutil
 import traceback
 import xml.etree.ElementTree as ET
 from datetime import datetime
