@@ -1,16 +1,5 @@
 """
 Created on Thu Aug 29 16:19:39 2024
-
-Experimentversion lö 22 mars 2025 med uppdaterade def create_xml_fgs och def run_web_extraction samt ny def convert_xml_to_csv.
-Uppdateringarna innebär att xml-filerna slås ihop till en och att en csv-fil skapas baserad på den sammanslagna xml-filen.
-Se #kommentarer.
-
-Exp.version må 24 mars 2025: Fixat efter diskussion möte så att de kombinerade filerna sparas i separat, parallell mapp.
-I def run_web_extraction:
-    folder_name_merged = "files_for_merged_files " + formatted_date_time
-    os.mkdir(folder_name_merged)
-Samt byta från folder_name till folder_name_merged på förekommande ställen.
-
  < Archiving-of-web-and-social-media: Takes screenshots of webpages and social media
  and converts it to tiff images for the purpose of archiving.>
      Copyright (C) 2024 Gislaveds Kommun
