@@ -1,6 +1,16 @@
 """
 Created on Thu Aug 29 16:19:39 2024
 
+Experimentversion lö 22 mars 2025 med uppdaterade def create_xml_fgs och def run_web_extraction samt ny def convert_xml_to_csv.
+Uppdateringarna innebär att xml-filerna slås ihop till en och att en csv-fil skapas baserad på den sammanslagna xml-filen.
+Se #kommentarer.
+
+Exp.version må 24 mars 2025: Fixat efter diskussion möte så att de kombinerade filerna sparas i separat, parallell mapp.
+I def run_web_extraction:
+    folder_name_merged = "files_for_merged_files " + formatted_date_time
+    os.mkdir(folder_name_merged)
+Samt byta från folder_name till folder_name_merged på förekommande ställen.
+
  < Archiving-of-web-and-social-media: Takes screenshots of webpages and social media
  and converts it to tiff images for the purpose of archiving.>
      Copyright (C) 2024 Gislaveds Kommun
@@ -22,29 +32,33 @@ Created on Thu Aug 29 16:19:39 2024
 """
 
 import json
-import os
 import sys
 import re
+import shutil
 import traceback
 import xml.etree.ElementTree as ET
-import xml.dom.minidom
-import shutil
-from bs4 import BeautifulSoup
 from datetime import datetime
 from pathlib import Path
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urlparse
 
-import requests
 import pandas as pd
 from PIL import Image
-from lxml import etree
+import lxml.etree as etree
 from openpyxl import Workbook
 from dotenv import load_dotenv
 
-import constants as const
+from constants import PATH_TO_IMAGE_TEMP
+from constants import ORG_NUMBER
+from constants import DELIVERY
 from constants import CLI_STRINGS as cli
 from webdriver_class import WebdriverClass
 from exception import LoginException
+from metadata import Metadata
+
+DEBUG = False
+SCRIPT_DIR = Path(__file__).resolve().parent
+DEBUG_OUTPUT_DIR = SCRIPT_DIR / "tests"
+XML_OUTPUT_ROOT_DIR_NAME = "folder xml merged"
 
 
 def convert_png_to_tiff(input_path_png, output_path_tiff):
@@ -62,22 +76,12 @@ def get_part_of_string(input_string, split_by, index):
     try:
         return input_string.split(split_by)[index]
     except IndexError:
-        raise IndexError(f"Index {index} is out of range for the split string.") 
+        raise IndexError(f"Index {index} is out of range for the split string.")
 
 
-def get_local_file_url(file_path):
-    abs_path = os.path.abspath(file_path)
-    return urljoin('file:', f'/{abs_path}')
-
-
-def create_file_name(url, type_of_web_extraction):    
-    match type_of_web_extraction:
-        case "local-facebook":
-            second_part_of_filename = "local-facebook"
-        case _:
-            filename_first_50_chars_in_url = str(url)[:50]
-            second_part_of_filename = get_part_of_string(filename_first_50_chars_in_url, "//", 1)
-
+def create_file_name(url):
+    filename_first_50_chars_in_url = str(url)[:50]
+    second_part_of_filename = get_part_of_string(filename_first_50_chars_in_url, "//", 1)
     cleaned_filename = replace_unwanted_chars(second_part_of_filename, "_")
     unique_filename_date_time = cleaned_filename + "_" + datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
 
@@ -95,64 +99,51 @@ def prepare_and_clean_columns_and_index(data):
     return data
 
 
-def save_pretty_xml_to_file(root, folder_name, xml_file_name):
-    declaration = '<?xml version="1.0" encoding="UTF-8"?>\n'
-    xml_string = declaration + ET.tostring(root, encoding="utf-8", method="xml").decode()
+def create_output_directories(output_base_dir, formatted_date_time):
+    files_output_dir = output_base_dir / ("files for package creator " + formatted_date_time)
+    xml_output_root_dir = output_base_dir / (XML_OUTPUT_ROOT_DIR_NAME + " " + formatted_date_time)
 
-    dom = xml.dom.minidom.parseString(xml_string)
-    formatted_xml = dom.toprettyxml(indent="  ", encoding="UTF-8").decode("UTF-8")
+    files_output_dir.mkdir(parents=True, exist_ok=True)
+    xml_output_root_dir.mkdir(parents=True, exist_ok=True)
 
-    xml_file_path = Path(folder_name) / xml_file_name
-    with open(xml_file_path, "w", encoding="utf-8") as file:
-        file.write(formatted_xml)
+    return files_output_dir, xml_output_root_dir
 
 
-def create_xml_fgs(url, website, formatted_date, xml_file_name, tiff_image_name, folder_name, basemetadata):
+def create_combined_xml_file(xml_elements, xml_output_root_dir):
+    root = ET.Element("root")
+    for xml_element in xml_elements:
+        root.append(xml_element)
 
-    root = ET.Element(
-        "Leveransobjekt",
-        attrib={
-            "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
-            "xsi:noNamespaceSchemaLocation": "FREDA-GS-Webbsidor-v1_0.xsd",
-            "xmlns": "freda"
-        }
-    )
+    combined_xml_name = "combined_output.xml"
+    Metadata.save_pretty_xml_to_file(root, xml_output_root_dir, combined_xml_name)
+    print(f"Combined XML file created: {combined_xml_name}")
+    return xml_output_root_dir / combined_xml_name
 
-    # The order of the subelements is critical
-    document = ET.SubElement(root, "Dokument")
 
-    ET.SubElement(document, "Organisation").text = str(basemetadata['value']['organisation'])
-    ET.SubElement(document, "Arkivbildare").text = str(basemetadata['value']['arkivbildare'])
-    ET.SubElement(document, "Arkivbildarenhet").text = str(basemetadata['value']['arkivbildarenhet'])
-    ET.SubElement(document, "Arkiv").text = str(basemetadata['value']['arkiv'])
-    ET.SubElement(document, "Serie").text = str(basemetadata['value']['serie'])
-    ET.SubElement(document, "KlassificeringsstrukturText").text = str(basemetadata['value']['klassificeringsstrukturtext'])
-
-    process_struct = ET.SubElement(document, "ProcessStrukturerat")            
-    ET.SubElement(process_struct, "nivå1").text = str(basemetadata['value']['nivå1'])
-    ET.SubElement(process_struct, "nivå2").text = str(basemetadata['value']['nivå2'])
-    ET.SubElement(process_struct, "nivå3").text = str(basemetadata['value']['nivå3'])
-
-    ET.SubElement(document, "Ursprung").text = str(basemetadata['value']['ursprung'])
-    ET.SubElement(document, "Arkiveringsdatum").text = formatted_date
-    ET.SubElement(document, "Sekretess").text = str(basemetadata['value']['sekretess'])
-    ET.SubElement(document, "Personuppgifter").text = str(basemetadata['value']['personuppgifter'])
-    ET.SubElement(document, "Forskningsdata").text = str(basemetadata['value']['forskningsdata'])
-    ET.SubElement(document, "Site").text = get_domain_from_url(url)
-    ET.SubElement(document, "Webbsida").text = website
-    ET.SubElement(document, "Webbadress").text = url
-
+def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name,
+                   basemetadata):
+    url = url_and_metadata_for_website[0]
     title, keywords, description = WebdriverClass.get_webpage_metadata(url)
-    ET.SubElement(document, "WebPageTitle").text = title
-    ET.SubElement(document, "WebPageKeywords").text = keywords
-    ET.SubElement(document, "WebPageDescription").text = description
-    ET.SubElement(document, "WebPageCurrentURL").text = url
-    ET.SubElement(document, "Informationsdatum").text = formatted_date
-    ET.SubElement(document, "Kommentar").text = str(basemetadata['value']['kommentar'])
 
-    ET.SubElement(root, "DokumentFilnamn").text = tiff_image_name
+    metadata = basemetadata.to_dict()['value']
+    additional_metadata = {
+        "arkiveringsdatum": formatted_date,
+        "site": get_domain_from_url(url),
+        "webbsida": url_and_metadata_for_website[1],
+        "webbadress": url,
+        "webpagetitle": title,
+        "webpagekeywords": keywords,
+        "webpagedescription": description,
+        "webpagecurrenturl": url,
+        "informationsdatum": formatted_date,
+        "dokumentfilnamn": tiff_image_name
+    }
+    metadata.update(additional_metadata)
+    xml_file_path = Path(folder_name) / xml_file_name
+    metadata_instance = Metadata(**metadata)
+    metadata_instance.save_xml_to_file(xml_file_path)
 
-    save_pretty_xml_to_file(root, folder_name, xml_file_name)
+    return metadata_instance.to_xml()
 
 
 def is_valid_xml(xml_file):
@@ -169,16 +160,18 @@ def is_valid_xml(xml_file):
     return False
 
 
-def create_tiff_screenshot(url, folder_name, type_of_web_extraction):
-    filename = create_file_name(url, type_of_web_extraction)
+def create_tiff_screenshot(url, package_creator_dir, xml_output_root_dir, type_of_web_extraction, image_temp_dir):
+    filename = create_file_name(url)
     print(f"Processing {filename}")
-    output_path_png = "image_temp/" + filename + '.png'
+    output_path_png = Path(image_temp_dir) / f"{filename}.png"
     tiff_image_name = filename + '.tif'
-    output_path_tiff = folder_name + "/" + tiff_image_name
+    output_path_tiff_package = Path(package_creator_dir) / tiff_image_name
+    output_path_tiff_xml_output = Path(xml_output_root_dir) / tiff_image_name
 
-    WebdriverClass.capture_full_page_screenshot_with_custom_width(output_path_png, type_of_web_extraction, url)
+    WebdriverClass.capture_full_page_screenshot_with_custom_width(str(output_path_png), type_of_web_extraction, url)
 
-    convert_png_to_tiff(output_path_png, output_path_tiff)
+    convert_png_to_tiff(output_path_png, output_path_tiff_package)
+    shutil.copy2(output_path_tiff_package, output_path_tiff_xml_output)
 
     return tiff_image_name
 
@@ -193,10 +186,10 @@ def create_package_creator_config(basemetadata, folder_name):
     systemnamn_cleaned = replace_unwanted_chars(systemnamn, '')
 
     config_data = [("Agent 1 Namn", arkivbildare),
-                   ("Agent 1 Kommentar", const.ORG_NUMBER),
+                   ("Agent 1 Kommentar", ORG_NUMBER),
                    ("Agent 2 Namn", systemnamn),
                    ("Agent 3 Namn", arkivbildare),
-                   ("Leverans", const.DELIVERY),
+                   ("Leverans", DELIVERY),
                    ("Arkivbildare", arkivbildare_cleaned),
                    ("Systemnamn", systemnamn_cleaned),
                    ("Schema", config['xsd_file']),
@@ -211,206 +204,25 @@ def create_package_creator_config(basemetadata, folder_name):
     package_creator_workbook.save(config_file_path)
 
 
-def decompose_base_tag(soup):
-    base_tag = soup.find('base')
-    if base_tag:
-        base_tag.decompose()
-    return soup
-
-
-def get_html_start(soup):
-    html_tag = soup.find('html')
-    return "<html>\n" if not html_tag else str(html_tag).split("</head>")[0] + "</head>\n"
-
-
-def save_extracted_data_to_file(extracted_data, excel_path):    
-    df = pd.DataFrame(extracted_data, columns=['Webbadress', 'Webbsida'])
-    df.to_excel(excel_path, index=False)
-
-
-def save_parent_div_as_html(parent_div, html_start, html_end, output_dir_extracted_divs, i):
-    parent_html = str(parent_div)
-    final_html = f"{html_start}<body>\n{parent_html}\n</body>\n{html_end}"
-
-    file_name = f"parent_div_{i + 1}.html"
-    file_path = os.path.join(output_dir_extracted_divs, file_name)
-
-    with open(file_path, 'w', encoding='utf-8') as file:
-        file.write(final_html)
-    print(f"Saved: {file_path}")
-
-    return file_path
-
-
-def copy_local_image(full_img_url, image_dir):
-    local_path = urlparse(full_img_url).path
-
-    if os.name == 'nt':
-        local_path = local_path.lstrip('/')
-
-    try:
-
-        img_name = os.path.basename(local_path)
-        img_path = os.path.join(image_dir, img_name)
-
-        shutil.copy(local_path, img_path)
-        print(f"Copied: {img_path}")
-
-    except Exception as e:
-        print(f"Failed to copy image {local_path}: {e}")
-
-
-def download_image(full_img_url, img_url, image_dir):
-    try:
-        response = requests.get(full_img_url, stream=True)
-        response.raise_for_status()
-
-        img_name = os.path.basename(img_url)
-        img_path = os.path.join(image_dir, img_name)
-
-        with open(img_path, 'wb') as img_file:
-            for chunk in response.iter_content(1024):
-                img_file.write(chunk)
-
-        print(f"Downloaded: {img_path}")
-
-    except Exception as e:
-        print(f"Failed to download image {full_img_url}: {e}")  
-
-
-def extract_and_save_parent_divs_with_imagesold(html_content, divider_regexp_pattern, base_url, excel_path):
-
-    soup = BeautifulSoup(html_content, 'html.parser')
-    soup = decompose_base_tag(soup)
-    html_start = get_html_start(soup)
-    html_end = "</html>"
-    divider_regex = re.compile(divider_regexp_pattern, re.IGNORECASE)
-    dividers = soup.find_all(lambda tag: tag.name == 'div' and tag.string and divider_regex.search(tag.string))
-
-    os.makedirs(const.OUTPUT_DIR_EXTRACTED_DIVS, exist_ok=True)
-    image_dir = const.OUTPUT_DIR_EXTRACTED_DIVS + "/" + const.LOCAL_FACEBOOK_IMAGE_DIR
-    os.makedirs(image_dir, exist_ok=True)
-
-    extracted_file_paths = []
-
-    for i, divider in enumerate(dividers):
-
-        parent_div = divider.find_parent('div')
-        if parent_div:
-            file_path = save_parent_div_as_html(parent_div, html_start, html_end, const.OUTPUT_DIR_EXTRACTED_DIVS, i)
-
-            images = parent_div.find_all('img')
-
-            for img in images:
-                img_url = img.get('src')
-
-                if img_url:
-                    full_img_url = urljoin(base_url, img_url)
-                    if full_img_url.startswith("file:///"):
-                        copy_local_image(full_img_url, image_dir)
-                    else:
-                        download_image(full_img_url, img_url, image_dir)
-
-            extracted_file_paths.append([file_path, "Lokal Facebook"])
-    save_extracted_data_to_file(extracted_file_paths, excel_path)
-
-
-def save_html(html_soup, save_path):
-    with open(save_path, 'w', encoding='utf-8') as file:
-        file.write(str(html_soup.prettify()))
-
-
-def translate_date(date):
-    date = date.replace("fm", "AM").replace("em", "PM")
-
-    month_translation = {
-        "jan": "Jan", "feb": "Feb", "mar": "Mar", "apr": "Apr", "maj": "May", "jun": "Jun",
-        "jul": "Jul", "aug": "Aug", "sep": "Sep", "okt": "Oct", "nov": "Nov", "dec": "Dec"
-    }
-
-    parts = date.split(" ")
-    month = parts[0].lower()
-    if month in month_translation:
-        parts[0] = month_translation[month]  
-    date = " ".join(parts)
-    return date
-
-
-def extract_and_save_divs_with_images(html_content, divider_regexp_pattern, base_url, excel_path, lower_comparison_date, upper_comparison_date, is_date_comparison):
-
-    os.makedirs(const.OUTPUT_DIR_EXTRACTED_DIVS, exist_ok=True)
-    image_dir = const.OUTPUT_DIR_EXTRACTED_DIVS + "/" + const.LOCAL_FACEBOOK_IMAGE_DIR
-    os.makedirs(image_dir, exist_ok=True)
-
-    soup = BeautifulSoup(html_content, 'html.parser')
-    result_html = BeautifulSoup('<html></html>', 'html.parser')
-
-    tag_html = result_html.html
-
-    if soup.head:
-        if soup.head.base:
-            soup.head.base.decompose()
-        tag_html.append(soup.head)
-
-    tag_body = result_html.new_tag('body')
-    tag_html.append(tag_body)
-
-    tag_div_main = soup.find('div', {"role": "main"})
-    extracted_file_paths = []
-
-    reg_exp = re.compile(divider_regexp_pattern)
-    date_pattern = re.compile('[a-z]{3} [0-9]{1,2}, [0-9]{4}')
-
-    i = 0
-    for child in tag_div_main.children:
-        if child.find(string=reg_exp):
-            match = child.find(string=date_pattern)
-            if match:
-                found_date = match.strip()
-                found_date = translate_date(found_date)
-                date_obj = datetime.strptime(found_date, "%b %d, %Y %I:%M:%S %p")
-                print("Extracted Date:", found_date)
-
-                if (date_obj > lower_comparison_date and date_obj < upper_comparison_date) or not is_date_comparison:
-                    tag_body.clear()
-                    tag_body.append(child)
-                    file_name = f'post_html_{i}.html'
-                    file_path = os.path.join(const.OUTPUT_DIR_EXTRACTED_DIVS, file_name)
-                    save_html(result_html, file_path)
-                    extracted_file_paths.append([file_path, "Lokal Facebook"])
-
-                    images = child.find_all('img')
-
-                    for img in images:
-                        img_url = img.get('src')
-
-                        if img_url:
-                            full_img_url = urljoin(base_url, img_url)
-                            if full_img_url.startswith("file:///"):
-                                copy_local_image(full_img_url, image_dir)
-                            else:
-                                download_image(full_img_url, img_url, image_dir)
-                    i += 1
-                    # if i > 3:
-                    #    break
-    save_extracted_data_to_file(extracted_file_paths, excel_path)
-
-
 def run_web_extraction(type_of_web_extraction):
     pages_as_lists = pd.read_excel(config['pages_to_crawl_file'], sheet_name=0).fillna("").values.tolist()
-
     basemetadata = pd.read_excel(config['basemetadata_file'], sheet_name=0, index_col=0)
     basemetadata = prepare_and_clean_columns_and_index(basemetadata)
 
-    today = datetime.now()
-    formatted_date = today.strftime('%Y-%m-%d')
-    formatted_date_time = today.strftime('%Y-%m-%d-%H-%M-%S')
+    now = datetime.now()
+    formatted_date = now.strftime('%Y-%m-%d')
+    formatted_date_time = now.strftime('%Y-%m-%d-%H-%M-%S')
 
-    folder_name = "files for package creator " + formatted_date_time
-    os.mkdir(folder_name)
+    output_base_dir = DEBUG_OUTPUT_DIR if DEBUG else Path.cwd()
+    output_base_dir.mkdir(parents=True, exist_ok=True)
 
-    if not os.path.isdir(const.PATH_TO_IMAGE_TEMP):
-        os.mkdir(const.PATH_TO_IMAGE_TEMP)
+    files_output_dir, xml_output_root_dir = create_output_directories(
+        output_base_dir,
+        formatted_date_time
+    )
+
+    image_temp_dir = (output_base_dir / PATH_TO_IMAGE_TEMP) if DEBUG else Path(PATH_TO_IMAGE_TEMP)
+    image_temp_dir.mkdir(parents=True, exist_ok=True)
 
     match type_of_web_extraction.lower():
         case "facebook":
@@ -420,30 +232,134 @@ def run_web_extraction(type_of_web_extraction):
         case "instagram":
             WebdriverClass.login_to_instagram()
 
-    for url_and_metadata_for_website in pages_as_lists:
+    xml_elements = []
+    extraction_error = None
 
-        url = url_and_metadata_for_website[0]
-        website = url_and_metadata_for_website[1]
+    try:
+        for page_data in pages_as_lists:
+            url = page_data[0]
+            tiff_image_name = create_tiff_screenshot(
+                url,
+                files_output_dir,
+                xml_output_root_dir,
+                type_of_web_extraction,
+                image_temp_dir
+            )
+            print(f"Converted to tiff: {tiff_image_name}")
 
-        if type_of_web_extraction == "local-facebook":
-            url = get_local_file_url(url)
+            xml_file_name = get_part_of_string(tiff_image_name, ".", 0) + ".xml"
+            xml_element = create_xml_fgs(
+                page_data,
+                formatted_date,
+                xml_file_name,
+                tiff_image_name,
+                files_output_dir,
+                basemetadata
+            )
+            xml_elements.append(xml_element)
+            print(f"Created individual XML file: {xml_file_name}")
+    except Exception as e:
+        extraction_error = e
+        print(f"Extraction interrupted due to error: {e}")
+    finally:
+        combined_xml_file_path = create_combined_xml_file(xml_elements, xml_output_root_dir)
 
-        tiff_image_name = create_tiff_screenshot(url, folder_name, type_of_web_extraction)
-        print(f"Converted to tiff: {tiff_image_name}")
-
-        xml_file_name = get_part_of_string(tiff_image_name, ".", 0) + ".xml"
-        create_xml_fgs(url, website, formatted_date, xml_file_name, tiff_image_name, folder_name, basemetadata)
-        print(f"Created XML file: {xml_file_name}")
-
-        xml_file_path = Path(folder_name) / xml_file_name
-
-        if not is_valid_xml(xml_file_path):
-            print(f"xml not valid: {xml_file_path}")
-            break
+        if xml_elements:
+            convert_xml_to_csv(combined_xml_file_path, xml_output_root_dir)
         else:
-            print("Validation successful.")
+            print("No XML entries were created; skipped CSV export.")
 
-    create_package_creator_config(basemetadata, folder_name)
+        shutil.rmtree(image_temp_dir, ignore_errors=True)
+
+        if extraction_error is not None:
+            raise extraction_error
+
+
+def convert_xml_to_csv(xml_file_path, folder_name_merged):
+    tree = etree.parse(xml_file_path)
+    root = tree.getroot()
+
+    data = []
+
+    def local_name(tag_name):
+        return tag_name.split("}", 1)[1] if "}" in tag_name else tag_name
+
+    # merged XML contains default namespace "freda".
+    leveransobjekt_list = [
+        elem for elem in root.iter()
+        if local_name(elem.tag) == "Leveransobjekt"
+    ]
+
+    for leveransobjekt in leveransobjekt_list:
+        row_data = {}
+        documents = [
+            elem for elem in leveransobjekt
+            if local_name(elem.tag) == "Dokument"
+        ]
+
+        for document in documents:
+            for elem in document:
+                if len(elem):
+                    continue
+                row_data[local_name(elem.tag)] = elem.text
+
+            process_struct = next(
+                (elem for elem in document if local_name(elem.tag) == "ProcessStrukturerat"),
+                None
+            )
+            if process_struct is not None:
+                level_values = {
+                    local_name(child.tag): child.text
+                    for child in process_struct
+                }
+                # creating fallback cause of encoding. å is encoded as Ã¥ sometimes
+                # this will take å if it exists, otherwise it'll try to seawrch for Ã¥
+                row_data["ProcessStrukturerat_niva1"] = level_values.get("nivå1", level_values.get("nivÃ¥1"))
+                row_data["ProcessStrukturerat_niva2"] = level_values.get("nivå2", level_values.get("nivÃ¥2"))
+                row_data["ProcessStrukturerat_niva3"] = level_values.get("nivå3", level_values.get("nivÃ¥3"))
+
+            dokument_filnamn = next(
+                (elem for elem in leveransobjekt if local_name(elem.tag) == "DokumentFilnamn"),
+                None
+            )
+            if dokument_filnamn is not None:
+                row_data["DokumentFilnamn"] = dokument_filnamn.text
+
+        if row_data:
+            data.append(row_data)
+
+    df = pd.DataFrame(data)
+    if not df.empty:
+        process_columns = [
+            "ProcessStrukturerat_niva1",
+            "ProcessStrukturerat_niva2",
+            "ProcessStrukturerat_niva3"
+        ]
+        target_candidates = [
+            "KlassificeringsstrukturText",
+            "klassificering",
+            "Klassificering"
+        ]
+        column_lookup = {col.lower(): col for col in df.columns}
+        target_column = next(
+            (column_lookup[candidate.lower()] for candidate in target_candidates if candidate.lower() in column_lookup),
+            None
+        )
+
+        if target_column is not None:
+            columns_without_process = [col for col in df.columns if col not in process_columns]
+            insert_index = columns_without_process.index(target_column) + 1
+            process_present = [col for col in process_columns if col in df.columns]
+            new_columns = (
+                columns_without_process[:insert_index]
+                + process_present
+                + columns_without_process[insert_index:]
+            )
+            df = df.reindex(columns=new_columns)
+
+    csv_file_path = Path(folder_name_merged) / "combined_output.csv"
+    df.to_csv(csv_file_path, sep=';', index=False, encoding='utf-8')
+    print(f"Combined CSV file created: {csv_file_path}")
 
 
 def case_four_systemnamn():
@@ -496,7 +412,6 @@ def get_web_extraction_choice():
     print("3: Facebook")
     print("4: LinkedIn")
     print("5: Instagram")
-    print("6: Local Facebook")
     print("************************************")
 
     while True:
@@ -512,139 +427,26 @@ def get_web_extraction_choice():
                 return "linkedin"
             case "5":
                 return "instagram"
-            case "6":
-                return "local-facebook"
             case _:
                 print(cli['invalid_choice'])
 
 
-def get_local_facebook_divide_choice():
-    print("************************************")
-    print("The choices for dividing the local facebook are:")
-    print("1: Divs with images")
-    print("2: Divs with images and movies")
-    print("3: Custom regexp")
-    print("************************************")
+def case_run():
+    print(cli['run_program'])
 
-    while True:
-        user_input = input(cli['question_local_fb_divide'])
-        match user_input:
-            case "1":
-                return r'har lagt till .+ foto.?\.'
-            case "2":
-                return r'har lagt till .+ foto.?'
-            case "3":
-                return get_custom_regexp()
-            case _:
-                print(cli['invalid_choice'])
+    type_of_web_extraction = get_web_extraction_choice()
 
-
-def get_custom_regexp():
-    print(f"\nYour current 'divider regexp' is: {config['divider_regexp_pattern']}")
-    answer_divider_regexp_pattern = input(cli['question_regexp_pattern'])
-    if answer_divider_regexp_pattern.lower() == "y":
-        new_divider_regexp = input(cli['question_get_new_regexp'])
-        config['divider_regexp_pattern'] = new_divider_regexp if new_divider_regexp else config['divider_regexp_pattern']
-        return config['divider_regexp_pattern']
-
-
-def is_valid_date(date_str):
-    try:
-        datetime.strptime(date_str, "%Y-%m-%d")
-        return True
-    except ValueError:
-        return False
-
-
-def get_filter_date(date_type):
-
-    match date_type:
-        case "lower":
-            answer_filter_date = input(cli['question_lower_date'])
-        case "upper":
-            answer_filter_date = input(cli['question_upper_date'])
-
-    if answer_filter_date.lower() == "y":
-        while True:
-            filter_date = input(cli['question_get_filter_date'])
-            if is_valid_date(filter_date):
-                return filter_date
-            else:
-                print(cli['invalid_date_format'])
-    else:
-        return False
-
-
-def transform_date(date_str):
-    return datetime.strptime(date_str, "%Y-%m-%d")
-
-
-def get_path_to_local_facebook():
-    print(f"\nYour current 'path to local facebook' is: {config['path_to_local_facebook']}")
-    answer_path_to_local_facebook = input(cli['question_local_facebook'])
-    if answer_path_to_local_facebook.lower() == "y":
-        new_path_local_facebook = input(cli['question_get_path_local_facebook'])
-        config['path_to_local_facebook'] = new_path_local_facebook if new_path_local_facebook else config['path_to_local_facebook']
-
-
-def get_pages_to_crawl_file():
     print(f"\nYour current 'pages-to-crawl-file' is: {config['pages_to_crawl_file']}")
     answer_change_pages_to_crawl = input(cli['question_change_file'])
     if answer_change_pages_to_crawl.lower() == "y":
         new_pages_to_crawl = choose_new_file_input('Pages-to-crawl-file')
         config['pages_to_crawl_file'] = new_pages_to_crawl if new_pages_to_crawl else config['pages_to_crawl_file']
 
-
-def get_basemetadata_file():
     print(f"\nYour current basemetadata-file is: {config['basemetadata_file']}")
     answer_change_basemetadata = input(cli['question_change_file'])
     if answer_change_basemetadata.lower() == "y":
         new_basemetadata = choose_new_file_input('basemetadata-file')
         config['basemetadata_file'] = new_basemetadata if new_basemetadata else config['basemetadata_file']
-
-
-def divide_local_facebook_and_fill_excel():
-
-    get_path_to_local_facebook()
-    base_path = f"file:///{config['path_to_local_facebook']}/"
-    file_path = os.path.join(config['path_to_local_facebook'], "this_profile's_activity_across_facebook/posts/profile_posts_1.html")
-
-    config['divider_regexp_pattern'] = get_local_facebook_divide_choice()
-
-    is_date_comparison = False
-    lower_comparison_date = get_filter_date("lower")
-    if lower_comparison_date:
-        lower_comparison_date = transform_date(lower_comparison_date)
-        is_date_comparison = True
-    else:
-        lower_comparison_date = datetime(1, 1, 1, 0, 0, 0)
-
-    upper_comparison_date = get_filter_date("upper")
-    if upper_comparison_date:
-        upper_comparison_date = transform_date(upper_comparison_date)
-        is_date_comparison = True
-    else:
-        lower_comparison_date = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
-
-    with open(file_path, 'r', encoding='utf-8') as file:
-        html_content = file.read()
-
-    extract_and_save_divs_with_images(html_content, config['divider_regexp_pattern'], base_path, const.LOCAL_FACEBOOK_EXCEL_PATH, lower_comparison_date, upper_comparison_date, is_date_comparison)
-
-
-def case_run():
-    print(cli['run_program'])
-    type_of_web_extraction = get_web_extraction_choice()
-
-    if type_of_web_extraction == "local-facebook":
-
-        divide_local_facebook_and_fill_excel()
-        config['pages_to_crawl_file'] = const.LOCAL_FACEBOOK_EXCEL_PATH
-
-    else:
-        get_pages_to_crawl_file()
-
-    get_basemetadata_file()
 
     try:
         print(cli['run_web_extraction'])
@@ -696,7 +498,7 @@ def start_program():
         print("You can choose one of the following actions:")
         print("'Exit' or ctrl+c to quit at any time.")
         print("'R' to run web extraction")
-        print("1: to toogle Headless setting")
+        print(f"1: to toggle Headless setting ({'ACTIVE' if config['headless_for_full_height'] else 'INACTIVE'})")
         print("2: to change XSD-file")
         print("3: to change Contract-file")
         print("4: to change Systemnamn")
