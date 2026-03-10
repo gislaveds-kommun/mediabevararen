@@ -119,7 +119,9 @@ def create_combined_xml_file(xml_elements, xml_output_root_dir):
     print(f"Combined XML file created: {combined_xml_name}")
     return xml_output_root_dir / combined_xml_name
 
-def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basemetadata):
+
+def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name,
+                   basemetadata):
     url = url_and_metadata_for_website[0]
     title, keywords, description = WebdriverClass.get_webpage_metadata(url)
 
@@ -326,13 +328,40 @@ def convert_xml_to_csv(xml_file_path, folder_name_merged):
         if row_data:
             data.append(row_data)
 
-    # skapa df
     df = pd.DataFrame(data)
+    if not df.empty:
+        process_columns = [
+            "ProcessStrukturerat_niva1",
+            "ProcessStrukturerat_niva2",
+            "ProcessStrukturerat_niva3"
+        ]
+        target_candidates = [
+            "KlassificeringsstrukturText",
+            "klassificering",
+            "Klassificering"
+        ]
+        column_lookup = {col.lower(): col for col in df.columns}
+        target_column = next(
+            (column_lookup[candidate.lower()] for candidate in target_candidates if candidate.lower() in column_lookup),
+            None
+        )
 
-    # DataFrame to CSV
+        if target_column is not None:
+            columns_without_process = [col for col in df.columns if col not in process_columns]
+            insert_index = columns_without_process.index(target_column) + 1
+            process_present = [col for col in process_columns if col in df.columns]
+            new_columns = (
+                columns_without_process[:insert_index]
+                + process_present
+                + columns_without_process[insert_index:]
+            )
+            df = df.reindex(columns=new_columns)
+
     csv_file_path = Path(folder_name_merged) / "combined_output.csv"
     df.to_csv(csv_file_path, sep=';', index=False, encoding='utf-8')
     print(f"Combined CSV file created: {csv_file_path}")
+
+
 def case_four_systemnamn():
     systemnamn_message = f"Your current Systemnamn is: {config['systemnamn']}"
     if not config['systemnamn']:
@@ -522,5 +551,3 @@ if __name__ == "__main__":
         traceback.print_exc()
     finally:
         exit_program()
-
-
