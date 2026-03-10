@@ -4,7 +4,9 @@ A python script to harvest screenshots from **websites and social media** and pr
 # Features
 Takes screenshots of webpages or social media as **tiff** which is an archiveable image format.
 
-Creates XML with metadata to each screenshot in **FGS archive XML** format.
+Creates XML with metadata to each screenshot in **FGS archive XML** format, and creates a combined XML file of all metadata after completion.
+
+A **.CSV** file of the combined metadata output is compiled on completion.
 
 The **FGS XML structure** is based on **FREDA which is an E-archive cooperation with municipalities in Jönköpings Län**.
 
