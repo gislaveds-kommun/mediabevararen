@@ -1,5 +1,6 @@
 import xml.etree.ElementTree as ET
 import xml.dom.minidom
+from pathlib import Path
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -73,7 +74,7 @@ class Metadata:
         ET.SubElement(document, "Kommentar").text = str(self.kommentar)
 
         ET.SubElement(root, "DokumentFilnamn").text = str(self.dokumentfilnamn)
-
+        
         return root
 
     def save_xml_to_file(self, filepath):
@@ -85,4 +86,16 @@ class Metadata:
         formatted_xml = dom.toprettyxml(indent="  ", encoding="UTF-8").decode("UTF-8")
 
         with open(filepath, "w", encoding="utf-8") as file:
+            file.write(formatted_xml)
+
+    @staticmethod
+    def save_pretty_xml_to_file(root, folder_name, xml_file_name):
+        declaration = '<?xml version="1.0" encoding="UTF-8"?>\n'
+        xml_string = declaration + ET.tostring(root, encoding="utf-8", method="xml").decode()
+
+        dom = xml.dom.minidom.parseString(xml_string)
+        formatted_xml = dom.toprettyxml(indent="  ", encoding="UTF-8").decode("UTF-8")
+    
+        xml_file_path = Path(folder_name) / xml_file_name
+        with open(xml_file_path, "w", encoding="utf-8") as file:
             file.write(formatted_xml)

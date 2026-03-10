@@ -1,6 +1,16 @@
 """
 Created on Thu Aug 29 16:19:39 2024
 
+Experimentversion lö 22 mars 2025 med uppdaterade def create_xml_fgs och def run_web_extraction samt ny def convert_xml_to_csv.
+Uppdateringarna innebär att xml-filerna slås ihop till en och att en csv-fil skapas baserad på den sammanslagna xml-filen.
+Se #kommentarer.
+
+Exp.version må 24 mars 2025: Fixat efter diskussion möte så att de kombinerade filerna sparas i separat, parallell mapp.
+I def run_web_extraction:
+    folder_name_merged = "files_for_merged_files " + formatted_date_time
+    os.mkdir(folder_name_merged)
+Samt byta från folder_name till folder_name_merged på förekommande ställen.
+
  < Archiving-of-web-and-social-media: Takes screenshots of webpages and social media
  and converts it to tiff images for the purpose of archiving.>
      Copyright (C) 2024 Gislaveds Kommun
@@ -22,17 +32,18 @@ Created on Thu Aug 29 16:19:39 2024
 """
 
 import json
-import os
 import sys
 import re
+import shutil
 import traceback
+import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
 import pandas as pd
 from PIL import Image
-from lxml import etree
+import lxml.etree as etree
 from openpyxl import Workbook
 from dotenv import load_dotenv
 
@@ -43,6 +54,11 @@ from constants import CLI_STRINGS as cli
 from webdriver_class import WebdriverClass
 from exception import LoginException
 from metadata import Metadata
+
+DEBUG = False
+SCRIPT_DIR = Path(__file__).resolve().parent
+DEBUG_OUTPUT_DIR = SCRIPT_DIR / "tests"
+XML_OUTPUT_ROOT_DIR_NAME = "folder xml merged"
 
 
 def convert_png_to_tiff(input_path_png, output_path_tiff):
@@ -83,7 +99,29 @@ def prepare_and_clean_columns_and_index(data):
     return data
 
 
-def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basemetadata):
+def create_output_directories(output_base_dir, formatted_date_time):
+    files_output_dir = output_base_dir / ("files for package creator " + formatted_date_time)
+    xml_output_root_dir = output_base_dir / (XML_OUTPUT_ROOT_DIR_NAME + " " + formatted_date_time)
+
+    files_output_dir.mkdir(parents=True, exist_ok=True)
+    xml_output_root_dir.mkdir(parents=True, exist_ok=True)
+
+    return files_output_dir, xml_output_root_dir
+
+
+def create_combined_xml_file(xml_elements, xml_output_root_dir):
+    root = ET.Element("root")
+    for xml_element in xml_elements:
+        root.append(xml_element)
+
+    combined_xml_name = "combined_output.xml"
+    Metadata.save_pretty_xml_to_file(root, xml_output_root_dir, combined_xml_name)
+    print(f"Combined XML file created: {combined_xml_name}")
+    return xml_output_root_dir / combined_xml_name
+
+
+def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name,
+                   basemetadata):
     url = url_and_metadata_for_website[0]
     title, keywords, description = WebdriverClass.get_webpage_metadata(url)
 
@@ -105,6 +143,8 @@ def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, 
     metadata_instance = Metadata(**metadata)
     metadata_instance.save_xml_to_file(xml_file_path)
 
+    return metadata_instance.to_xml()
+
 
 def is_valid_xml(xml_file):
     try:
@@ -120,16 +160,18 @@ def is_valid_xml(xml_file):
     return False
 
 
-def create_tiff_screenshot(url, folder_name, type_of_web_extraction):
+def create_tiff_screenshot(url, package_creator_dir, xml_output_root_dir, type_of_web_extraction, image_temp_dir):
     filename = create_file_name(url)
     print(f"Processing {filename}")
-    output_path_png = "image_temp/" + filename + '.png'
+    output_path_png = Path(image_temp_dir) / f"{filename}.png"
     tiff_image_name = filename + '.tif'
-    output_path_tiff = folder_name + "/" + tiff_image_name
+    output_path_tiff_package = Path(package_creator_dir) / tiff_image_name
+    output_path_tiff_xml_output = Path(xml_output_root_dir) / tiff_image_name
 
-    WebdriverClass.capture_full_page_screenshot_with_custom_width(output_path_png, type_of_web_extraction, url)
+    WebdriverClass.capture_full_page_screenshot_with_custom_width(str(output_path_png), type_of_web_extraction, url)
 
-    convert_png_to_tiff(output_path_png, output_path_tiff)
+    convert_png_to_tiff(output_path_png, output_path_tiff_package)
+    shutil.copy2(output_path_tiff_package, output_path_tiff_xml_output)
 
     return tiff_image_name
 
@@ -164,19 +206,23 @@ def create_package_creator_config(basemetadata, folder_name):
 
 def run_web_extraction(type_of_web_extraction):
     pages_as_lists = pd.read_excel(config['pages_to_crawl_file'], sheet_name=0).fillna("").values.tolist()
-
     basemetadata = pd.read_excel(config['basemetadata_file'], sheet_name=0, index_col=0)
     basemetadata = prepare_and_clean_columns_and_index(basemetadata)
 
-    today = datetime.now()
-    formatted_date = today.strftime('%Y-%m-%d')
-    formatted_date_time = today.strftime('%Y-%m-%d-%H-%M-%S')
+    now = datetime.now()
+    formatted_date = now.strftime('%Y-%m-%d')
+    formatted_date_time = now.strftime('%Y-%m-%d-%H-%M-%S')
 
-    folder_name = "files for package creator " + formatted_date_time
-    os.mkdir(folder_name)
+    output_base_dir = DEBUG_OUTPUT_DIR if DEBUG else Path.cwd()
+    output_base_dir.mkdir(parents=True, exist_ok=True)
 
-    if not os.path.isdir(PATH_TO_IMAGE_TEMP):
-        os.mkdir(PATH_TO_IMAGE_TEMP)
+    files_output_dir, xml_output_root_dir = create_output_directories(
+        output_base_dir,
+        formatted_date_time
+    )
+
+    image_temp_dir = (output_base_dir / PATH_TO_IMAGE_TEMP) if DEBUG else Path(PATH_TO_IMAGE_TEMP)
+    image_temp_dir.mkdir(parents=True, exist_ok=True)
 
     match type_of_web_extraction.lower():
         case "facebook":
@@ -186,25 +232,134 @@ def run_web_extraction(type_of_web_extraction):
         case "instagram":
             WebdriverClass.login_to_instagram()
 
-    for url_and_metadata_for_website in pages_as_lists:
+    xml_elements = []
+    extraction_error = None
 
-        url = url_and_metadata_for_website[0]
-        tiff_image_name = create_tiff_screenshot(url, folder_name, type_of_web_extraction)
-        print(f"Converted to tiff: {tiff_image_name}")
+    try:
+        for page_data in pages_as_lists:
+            url = page_data[0]
+            tiff_image_name = create_tiff_screenshot(
+                url,
+                files_output_dir,
+                xml_output_root_dir,
+                type_of_web_extraction,
+                image_temp_dir
+            )
+            print(f"Converted to tiff: {tiff_image_name}")
 
-        xml_file_name = get_part_of_string(tiff_image_name, ".", 0) + ".xml"
-        create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name, basemetadata)
-        print(f"Created XML file: {xml_file_name}")
+            xml_file_name = get_part_of_string(tiff_image_name, ".", 0) + ".xml"
+            xml_element = create_xml_fgs(
+                page_data,
+                formatted_date,
+                xml_file_name,
+                tiff_image_name,
+                files_output_dir,
+                basemetadata
+            )
+            xml_elements.append(xml_element)
+            print(f"Created individual XML file: {xml_file_name}")
+    except Exception as e:
+        extraction_error = e
+        print(f"Extraction interrupted due to error: {e}")
+    finally:
+        combined_xml_file_path = create_combined_xml_file(xml_elements, xml_output_root_dir)
 
-        xml_file_path = Path(folder_name) / xml_file_name
-
-        if not is_valid_xml(xml_file_path):
-            print(f"xml not valid: {xml_file_path}")
-            break
+        if xml_elements:
+            convert_xml_to_csv(combined_xml_file_path, xml_output_root_dir)
         else:
-            print("Validation successful.")
+            print("No XML entries were created; skipped CSV export.")
 
-    create_package_creator_config(basemetadata, folder_name)
+        shutil.rmtree(image_temp_dir, ignore_errors=True)
+
+        if extraction_error is not None:
+            raise extraction_error
+
+
+def convert_xml_to_csv(xml_file_path, folder_name_merged):
+    tree = etree.parse(xml_file_path)
+    root = tree.getroot()
+
+    data = []
+
+    def local_name(tag_name):
+        return tag_name.split("}", 1)[1] if "}" in tag_name else tag_name
+
+    # merged XML contains default namespace "freda".
+    leveransobjekt_list = [
+        elem for elem in root.iter()
+        if local_name(elem.tag) == "Leveransobjekt"
+    ]
+
+    for leveransobjekt in leveransobjekt_list:
+        row_data = {}
+        documents = [
+            elem for elem in leveransobjekt
+            if local_name(elem.tag) == "Dokument"
+        ]
+
+        for document in documents:
+            for elem in document:
+                if len(elem):
+                    continue
+                row_data[local_name(elem.tag)] = elem.text
+
+            process_struct = next(
+                (elem for elem in document if local_name(elem.tag) == "ProcessStrukturerat"),
+                None
+            )
+            if process_struct is not None:
+                level_values = {
+                    local_name(child.tag): child.text
+                    for child in process_struct
+                }
+                # creating fallback cause of encoding. å is encoded as Ã¥ sometimes
+                # this will take å if it exists, otherwise it'll try to seawrch for Ã¥
+                row_data["ProcessStrukturerat_niva1"] = level_values.get("nivå1", level_values.get("nivÃ¥1"))
+                row_data["ProcessStrukturerat_niva2"] = level_values.get("nivå2", level_values.get("nivÃ¥2"))
+                row_data["ProcessStrukturerat_niva3"] = level_values.get("nivå3", level_values.get("nivÃ¥3"))
+
+            dokument_filnamn = next(
+                (elem for elem in leveransobjekt if local_name(elem.tag) == "DokumentFilnamn"),
+                None
+            )
+            if dokument_filnamn is not None:
+                row_data["DokumentFilnamn"] = dokument_filnamn.text
+
+        if row_data:
+            data.append(row_data)
+
+    df = pd.DataFrame(data)
+    if not df.empty:
+        process_columns = [
+            "ProcessStrukturerat_niva1",
+            "ProcessStrukturerat_niva2",
+            "ProcessStrukturerat_niva3"
+        ]
+        target_candidates = [
+            "KlassificeringsstrukturText",
+            "klassificering",
+            "Klassificering"
+        ]
+        column_lookup = {col.lower(): col for col in df.columns}
+        target_column = next(
+            (column_lookup[candidate.lower()] for candidate in target_candidates if candidate.lower() in column_lookup),
+            None
+        )
+
+        if target_column is not None:
+            columns_without_process = [col for col in df.columns if col not in process_columns]
+            insert_index = columns_without_process.index(target_column) + 1
+            process_present = [col for col in process_columns if col in df.columns]
+            new_columns = (
+                columns_without_process[:insert_index]
+                + process_present
+                + columns_without_process[insert_index:]
+            )
+            df = df.reindex(columns=new_columns)
+
+    csv_file_path = Path(folder_name_merged) / "combined_output.csv"
+    df.to_csv(csv_file_path, sep=';', index=False, encoding='utf-8')
+    print(f"Combined CSV file created: {csv_file_path}")
 
 
 def case_four_systemnamn():
@@ -343,7 +498,7 @@ def start_program():
         print("You can choose one of the following actions:")
         print("'Exit' or ctrl+c to quit at any time.")
         print("'R' to run web extraction")
-        print("1: to toogle Headless setting")
+        print(f"1: to toggle Headless setting ({'ACTIVE' if config['headless_for_full_height'] else 'INACTIVE'})")
         print("2: to change XSD-file")
         print("3: to change Contract-file")
         print("4: to change Systemnamn")
