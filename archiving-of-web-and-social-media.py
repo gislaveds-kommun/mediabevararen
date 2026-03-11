@@ -26,10 +26,13 @@ import re
 import shutil
 import traceback
 import xml.etree.ElementTree as ET
+import os
+from bs4 import BeautifulSoup
 from datetime import datetime
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
+import requests
 import pandas as pd
 from PIL import Image
 import lxml.etree as etree
@@ -37,6 +40,9 @@ from openpyxl import Workbook
 from dotenv import load_dotenv
 
 from constants import PATH_TO_IMAGE_TEMP
+from constants import LOCAL_FACEBOOK_EXCEL_PATH
+from constants import OUTPUT_DIR_EXTRACTED_DIVS
+from constants import LOCAL_FACEBOOK_IMAGE_DIR
 from constants import ORG_NUMBER
 from constants import DELIVERY
 from constants import CLI_STRINGS as cli
@@ -60,6 +66,7 @@ def replace_unwanted_chars(filename, replacement):
 
 
 def get_part_of_string(input_string, split_by, index):
+    print(input_string)
     if not split_by:
         raise ValueError("split_by cannot be empty.")
     try:
@@ -68,10 +75,15 @@ def get_part_of_string(input_string, split_by, index):
         raise IndexError(f"Index {index} is out of range for the split string.")
 
 
-def create_file_name(url):
+def create_file_name(url, type_of_web_extraction):
     filename_first_50_chars_in_url = str(url)[:50]
-    second_part_of_filename = get_part_of_string(filename_first_50_chars_in_url, "//", 1)
-    cleaned_filename = replace_unwanted_chars(second_part_of_filename, "_")
+    if type_of_web_extraction == "local-facebook":
+        filename = filename_first_50_chars_in_url
+    else:
+        second_part_of_filename = get_part_of_string(filename_first_50_chars_in_url, "//", 1)
+        filename = second_part_of_filename
+
+    cleaned_filename = replace_unwanted_chars(filename, "_")
     unique_filename_date_time = cleaned_filename + "_" + datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
 
     return unique_filename_date_time
@@ -150,7 +162,7 @@ def is_valid_xml(xml_file):
 
 
 def create_tiff_screenshot(url, package_creator_dir, xml_output_root_dir, type_of_web_extraction, image_temp_dir):
-    filename = create_file_name(url)
+    filename = create_file_name(url, type_of_web_extraction)
     print(f"Processing {filename}")
     output_path_png = Path(image_temp_dir) / f"{filename}.png"
     tiff_image_name = filename + '.tif'
@@ -401,6 +413,7 @@ def get_web_extraction_choice():
     print("3: Facebook")
     print("4: LinkedIn")
     print("5: Instagram")
+    print("6: Local Facebook")
     print("************************************")
 
     while True:
@@ -416,8 +429,231 @@ def get_web_extraction_choice():
                 return "linkedin"
             case "5":
                 return "instagram"
+            case "6":
+                return "local-facebook"
             case _:
                 print(cli['invalid_choice'])
+
+
+def get_path_to_local_facebook():
+    print(f"\nYour current 'path to local facebook' is: {config['path_to_local_facebook']}")
+    answer_path_to_local_facebook = input(cli['question_local_facebook'])
+    if answer_path_to_local_facebook.lower() == "y":
+        new_path_local_facebook = input(cli['question_get_path_local_facebook'])
+        config['path_to_local_facebook'] = new_path_local_facebook if new_path_local_facebook else config['path_to_local_facebook']
+
+
+def get_custom_regexp():
+    print(f"\nYour current 'divider regexp' is: {config['divider_regexp_pattern']}")
+    answer_divider_regexp_pattern = input(cli['question_regexp_pattern'])
+    if answer_divider_regexp_pattern.lower() == "y":
+        new_divider_regexp = input(cli['question_get_new_regexp'])
+        config['divider_regexp_pattern'] = new_divider_regexp if new_divider_regexp else config['divider_regexp_pattern']
+        return config['divider_regexp_pattern']
+
+
+def get_local_facebook_divide_choice():
+    print("************************************")
+    print("The choices for dividing the local facebook are:")
+    print("1: Divs with images")
+    print("2: Divs with images and movies")
+    print("3: Custom regexp")
+    print("************************************")
+
+    while True:
+        user_input = input(cli['question_local_fb_divide'])
+        match user_input:
+            case "1":
+                return r'har lagt till .+ foto.?\.'
+            case "2":
+                return r'har lagt till .+ foto.?'
+            case "3":
+                return get_custom_regexp()
+            case _:
+                print(cli['invalid_choice'])
+
+
+def is_valid_date(date_str):
+    try:
+        datetime.strptime(date_str, "%Y-%m-%d")
+        return True
+    except ValueError:
+        return False
+
+
+def get_filter_date(date_type):
+
+    match date_type:
+        case "lower":
+            answer_filter_date = input(cli['question_lower_date'])
+        case "upper":
+            answer_filter_date = input(cli['question_upper_date'])
+
+    if answer_filter_date.lower() == "y":
+        while True:
+            filter_date = input(cli['question_get_filter_date'])
+            if is_valid_date(filter_date):
+                return filter_date
+            else:
+                print(cli['invalid_date_format'])
+    else:
+        return False
+
+
+def transform_date(date_str):
+    return datetime.strptime(date_str, "%Y-%m-%d")
+
+
+def translate_date(date):
+    date = date.replace("fm", "AM").replace("em", "PM")
+
+    month_translation = {
+        "jan": "Jan", "feb": "Feb", "mar": "Mar", "apr": "Apr", "maj": "May", "jun": "Jun",
+        "jul": "Jul", "aug": "Aug", "sep": "Sep", "okt": "Oct", "nov": "Nov", "dec": "Dec"
+    }
+
+    parts = date.split(" ")
+    month = parts[0].lower()
+    if month in month_translation:
+        parts[0] = month_translation[month]  
+    date = " ".join(parts)
+    return date
+
+
+def save_html(html_soup, save_path):
+    with open(save_path, 'w', encoding='utf-8') as file:
+        file.write(str(html_soup.prettify()))
+
+
+def copy_local_image(full_img_url, image_dir):
+    local_path = urlparse(full_img_url).path
+
+    if os.name == 'nt':
+        local_path = local_path.lstrip('/')
+
+    try:
+
+        img_name = os.path.basename(local_path)
+        img_path = os.path.join(image_dir, img_name)
+
+        shutil.copy(local_path, img_path)
+        print(f"Copied: {img_path}")
+
+    except Exception as e:
+        print(f"Failed to copy image {local_path}: {e}")
+
+
+def download_image(full_img_url, img_url, image_dir):
+    try:
+        response = requests.get(full_img_url, stream=True)
+        response.raise_for_status()
+
+        img_name = os.path.basename(img_url)
+        img_path = os.path.join(image_dir, img_name)
+
+        with open(img_path, 'wb') as img_file:
+            for chunk in response.iter_content(1024):
+                img_file.write(chunk)
+
+        print(f"Downloaded: {img_path}")
+
+    except Exception as e:
+        print(f"Failed to download image {full_img_url}: {e}")  
+
+
+def save_extracted_data_to_file(extracted_data, excel_path):    
+    df = pd.DataFrame(extracted_data, columns=['Webbadress', 'Webbsida'])
+    df.to_excel(excel_path, index=False)
+
+
+def extract_and_save_divs_with_images(html_content, divider_regexp_pattern, base_url, excel_path, lower_comparison_date, upper_comparison_date, is_date_comparison):
+
+    os.makedirs(OUTPUT_DIR_EXTRACTED_DIVS, exist_ok=True)
+    image_dir = OUTPUT_DIR_EXTRACTED_DIVS + "/" + LOCAL_FACEBOOK_IMAGE_DIR
+    os.makedirs(image_dir, exist_ok=True)
+
+    soup = BeautifulSoup(html_content, 'html.parser')
+    result_html = BeautifulSoup('<html></html>', 'html.parser')
+
+    tag_html = result_html.html
+
+    if soup.head:
+        if soup.head.base:
+            soup.head.base.decompose()
+        tag_html.append(soup.head)
+
+    tag_body = result_html.new_tag('body')
+    tag_html.append(tag_body)
+
+    tag_div_main = soup.find('div', {"role": "main"})
+    extracted_file_paths = []
+
+    reg_exp = re.compile(divider_regexp_pattern)
+    date_pattern = re.compile('[a-z]{3} [0-9]{1,2}, [0-9]{4}')
+
+    i = 0
+    for child in tag_div_main.children:
+        if child.find(string=reg_exp):
+            match = child.find(string=date_pattern)
+            if match:
+                found_date = match.strip()
+                found_date = translate_date(found_date)
+                date_obj = datetime.strptime(found_date, "%b %d, %Y %I:%M:%S %p")
+                print("Extracted Date:", found_date)
+
+                if (date_obj > lower_comparison_date and date_obj < upper_comparison_date) or not is_date_comparison:
+                    tag_body.clear()
+                    tag_body.append(child)
+                    file_name = f'post_html_{i}.html'
+                    file_path = os.path.join(OUTPUT_DIR_EXTRACTED_DIVS, file_name)
+                    save_html(result_html, file_path)
+                    extracted_file_paths.append([file_path, "Lokal Facebook"])
+
+                    images = child.find_all('img')
+
+                    for img in images:
+                        img_url = img.get('src')
+
+                        if img_url:
+                            full_img_url = urljoin(base_url, img_url)
+                            if full_img_url.startswith("file:///"):
+                                copy_local_image(full_img_url, image_dir)
+                            else:
+                                download_image(full_img_url, img_url, image_dir)
+                    i += 1
+                    # if i > 3:
+                    #    break
+    save_extracted_data_to_file(extracted_file_paths, excel_path)
+
+
+
+def divide_local_facebook_and_fill_excel():
+
+    get_path_to_local_facebook()
+    base_path = f"file:///{config['path_to_local_facebook']}/"
+    file_path = os.path.join(config['path_to_local_facebook'], "this_profile's_activity_across_facebook/posts/profile_posts_1.html")
+
+    config['divider_regexp_pattern'] = get_local_facebook_divide_choice()
+
+    is_date_comparison = False
+    lower_comparison_date = get_filter_date("lower")
+    if lower_comparison_date:
+        lower_comparison_date = transform_date(lower_comparison_date)
+        is_date_comparison = True
+    else:
+        lower_comparison_date = datetime(1, 1, 1, 0, 0, 0)
+
+    upper_comparison_date = get_filter_date("upper")
+    if upper_comparison_date:
+        upper_comparison_date = transform_date(upper_comparison_date)
+        is_date_comparison = True
+    else:
+        lower_comparison_date = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    with open(file_path, 'r', encoding='utf-8') as file:
+        html_content = file.read()
+
+    extract_and_save_divs_with_images(html_content, config['divider_regexp_pattern'], base_path, LOCAL_FACEBOOK_EXCEL_PATH, lower_comparison_date, upper_comparison_date, is_date_comparison)
 
 
 def case_run():
@@ -425,17 +661,24 @@ def case_run():
 
     type_of_web_extraction = get_web_extraction_choice()
 
-    print(f"\nYour current 'pages-to-crawl-file' is: {config['pages_to_crawl_file']}")
-    answer_change_pages_to_crawl = input(cli['question_change_file'])
-    if answer_change_pages_to_crawl.lower() == "y":
-        new_pages_to_crawl = choose_new_file_input('Pages-to-crawl-file')
-        config['pages_to_crawl_file'] = new_pages_to_crawl if new_pages_to_crawl else config['pages_to_crawl_file']
+    if type_of_web_extraction == "local-facebook":
 
-    print(f"\nYour current basemetadata-file is: {config['basemetadata_file']}")
-    answer_change_basemetadata = input(cli['question_change_file'])
-    if answer_change_basemetadata.lower() == "y":
-        new_basemetadata = choose_new_file_input('basemetadata-file')
-        config['basemetadata_file'] = new_basemetadata if new_basemetadata else config['basemetadata_file']
+        divide_local_facebook_and_fill_excel()
+        config['pages_to_crawl_file'] = LOCAL_FACEBOOK_EXCEL_PATH
+
+    else:
+
+        print(f"\nYour current 'pages-to-crawl-file' is: {config['pages_to_crawl_file']}")
+        answer_change_pages_to_crawl = input(cli['question_change_file'])
+        if answer_change_pages_to_crawl.lower() == "y":
+            new_pages_to_crawl = choose_new_file_input('Pages-to-crawl-file')
+            config['pages_to_crawl_file'] = new_pages_to_crawl if new_pages_to_crawl else config['pages_to_crawl_file']
+
+        print(f"\nYour current basemetadata-file is: {config['basemetadata_file']}")
+        answer_change_basemetadata = input(cli['question_change_file'])
+        if answer_change_basemetadata.lower() == "y":
+            new_basemetadata = choose_new_file_input('basemetadata-file')
+            config['basemetadata_file'] = new_basemetadata if new_basemetadata else config['basemetadata_file']
 
     try:
         print(cli['run_web_extraction'])
