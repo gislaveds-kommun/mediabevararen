@@ -20,8 +20,8 @@ TIMEOUT_SECONDS = "20"
 TIMEOUT_SECONDS_SHORT = "5"
 LOCAL_FACEBOOK_EXCEL_PATH = "facebook_local.xlsx"
 OUTPUT_DIR_EXTRACTED_DIVS = "extracted_divs"
-LOCAL_FACEBOOK_IMAGE_DIR = "this_profile\'s_activity_across_facebook/posts/media/Fotonfrantidslinjen_jAIdt6DcyQ"
-
+#LOCAL_FACEBOOK_IMAGE_DIR = "this_profile's_activity_across_facebook/posts/media/Foton_266433062727164/"
+LOCAL_FACEBOOK_IMAGE_DIR = "this_profile's_activity_across_facebook/posts/media/Fotonfrantidslinjen_jAIdt6DcyQ"
 
 CLI_STRINGS = {
     'empty_systemnamn': "Systemnamn is cleared and basmetadata URSRPUNG is chosen",
