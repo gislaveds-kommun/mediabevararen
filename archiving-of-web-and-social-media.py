@@ -26,13 +26,10 @@ import re
 import shutil
 import traceback
 import xml.etree.ElementTree as ET
-import os
-from bs4 import BeautifulSoup
 from datetime import datetime
 from pathlib import Path
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urlparse
 
-import requests
 import pandas as pd
 from PIL import Image
 import lxml.etree as etree
@@ -41,12 +38,11 @@ from dotenv import load_dotenv
 
 from constants import PATH_TO_IMAGE_TEMP
 from constants import LOCAL_FACEBOOK_EXCEL_PATH
-from constants import OUTPUT_DIR_EXTRACTED_DIVS
-from constants import LOCAL_FACEBOOK_IMAGE_DIR
 from constants import ORG_NUMBER
 from constants import DELIVERY
 from constants import CLI_STRINGS as cli
 from webdriver_class import WebdriverClass
+from local_facebook import LocalFacebookProcessor
 from exception import LoginException
 from metadata import Metadata
 
@@ -102,12 +98,17 @@ def prepare_and_clean_columns_and_index(data):
 
 def create_output_directories(output_base_dir, formatted_date_time):
     files_output_dir = output_base_dir / ("files for package creator " + formatted_date_time)
+    files_output_dir_tiff = files_output_dir / "TIFF"
+    files_output_dir_tiffmeta = files_output_dir / "TIFFMeta"
+
     xml_output_root_dir = output_base_dir / (XML_OUTPUT_ROOT_DIR_NAME + " " + formatted_date_time)
 
     files_output_dir.mkdir(parents=True, exist_ok=True)
     xml_output_root_dir.mkdir(parents=True, exist_ok=True)
+    files_output_dir_tiff.mkdir(parents=True, exist_ok=True)
+    files_output_dir_tiffmeta.mkdir(parents=True, exist_ok=True)
 
-    return files_output_dir, xml_output_root_dir
+    return files_output_dir_tiff, files_output_dir_tiffmeta, xml_output_root_dir
 
 
 def create_combined_xml_file(xml_elements, xml_output_root_dir):
@@ -194,8 +195,9 @@ def create_package_creator_config(basemetadata, folder_name):
                    ("Arkivbildare", arkivbildare_cleaned),
                    ("Systemnamn", systemnamn_cleaned),
                    ("Schema", config['xsd_file']),
-                   ("Contract", config['contract'])]
-
+                   ("Contract", config['contract']),
+                   ("Extension", "*.tif")]
+    
     package_creator_workbook = Workbook()
     package_creator_active_sheet = package_creator_workbook.active
     for row in config_data:
@@ -217,7 +219,7 @@ def run_web_extraction(type_of_web_extraction):
     output_base_dir = DEBUG_OUTPUT_DIR if DEBUG else Path.cwd()
     output_base_dir.mkdir(parents=True, exist_ok=True)
 
-    files_output_dir, xml_output_root_dir = create_output_directories(
+    files_output_dir_tiff, files_output_dir_tiffmeta, xml_output_root_dir = create_output_directories(
         output_base_dir,
         formatted_date_time
     )
@@ -241,7 +243,7 @@ def run_web_extraction(type_of_web_extraction):
             url = page_data[0]
             tiff_image_name = create_tiff_screenshot(
                 url,
-                files_output_dir,
+                files_output_dir_tiff,
                 xml_output_root_dir,
                 type_of_web_extraction,
                 image_temp_dir
@@ -254,7 +256,7 @@ def run_web_extraction(type_of_web_extraction):
                 formatted_date,
                 xml_file_name,
                 tiff_image_name,
-                files_output_dir,
+                files_output_dir_tiff,
                 basemetadata,
                 type_of_web_extraction
             )
@@ -265,7 +267,7 @@ def run_web_extraction(type_of_web_extraction):
         print(f"Extraction interrupted due to error: {e}")
     finally:
         combined_xml_file_path = create_combined_xml_file(xml_elements, xml_output_root_dir)
-        create_package_creator_config(basemetadata, files_output_dir)
+        create_package_creator_config(basemetadata, files_output_dir_tiffmeta)
 
         if xml_elements:
             convert_xml_to_csv(combined_xml_file_path, xml_output_root_dir)
@@ -437,14 +439,6 @@ def get_web_extraction_choice():
                 print(cli['invalid_choice'])
 
 
-def get_path_to_local_facebook():
-    print(f"\nYour current 'path to local facebook' is: {config['path_to_local_facebook']}")
-    answer_path_to_local_facebook = input(cli['question_local_facebook'])
-    if answer_path_to_local_facebook.lower() == "y":
-        new_path_local_facebook = input(cli['question_get_path_local_facebook'])
-        config['path_to_local_facebook'] = new_path_local_facebook if new_path_local_facebook else config['path_to_local_facebook']
-
-
 def get_custom_regexp():
     print(f"\nYour current 'divider regexp' is: {config['divider_regexp_pattern']}")
     answer_divider_regexp_pattern = input(cli['question_regexp_pattern'])
@@ -454,253 +448,15 @@ def get_custom_regexp():
         return config['divider_regexp_pattern']
 
 
-def get_local_facebook_divide_choice():
-    print("************************************")
-    print("The choices for dividing the local facebook are:")
-    print("1: Divs with images")
-    print("2: Divs with movies")
-    print("3: Divs with images and movies")
-    print("4: Custom regexp")
-    print("************************************")
-
-    while True:
-        user_input = input(cli['question_local_fb_divide'])
-        match user_input:
-            case "1":
-                #return r'har lagt till .+ foto.?\.'
-                return r'har\s+lagt\s+till\s+.+\s+foto.?\.'
-            case "2":
-                return r'har\s+lagt\s+till\s+en\s+ny\s+video\.?'
-            case "3":
-                return r'har\s+lagt\s+till\s+(.+foto.?|en\s+ny\s+video)\.?'
-            case "4":
-                return get_custom_regexp()
-            case _:
-                print(cli['invalid_choice'])
-
-
-def is_valid_date(date_str):
-    try:
-        datetime.strptime(date_str, "%Y-%m-%d")
-        return True
-    except ValueError:
-        return False
-
-
-def get_filter_date(date_type):
-
-    match date_type:
-        case "lower":
-            answer_filter_date = input(cli['question_lower_date'])
-        case "upper":
-            answer_filter_date = input(cli['question_upper_date'])
-
-    if answer_filter_date.lower() == "y":
-        while True:
-            filter_date = input(cli['question_get_filter_date'])
-            if is_valid_date(filter_date):
-                return filter_date
-            else:
-                print(cli['invalid_date_format'])
-    else:
-        return False
-
-
-def transform_date(date_str):
-    return datetime.strptime(date_str, "%Y-%m-%d")
-
-
-def save_html(html_soup, save_path):
-    with open(save_path, 'w', encoding='utf-8') as file:
-        file.write(str(html_soup.prettify()))
-
-
-def copy_local_image(full_img_url, image_dir):
-    local_path = urlparse(full_img_url).path
-
-    if os.name == 'nt':
-        local_path = local_path.lstrip('/')
-
-    try:
-
-        img_name = os.path.basename(local_path)
-        img_path = os.path.join(image_dir, img_name)
-
-        shutil.copy(local_path, img_path)
-        print(f"Copied: {img_path}")
-
-    except Exception as e:
-        print(f"Failed to copy image {local_path}: {e}")
-
-
-def download_image(full_img_url, img_url, image_dir):
-    try:
-        response = requests.get(full_img_url, stream=True)
-        response.raise_for_status()
-
-        img_name = os.path.basename(img_url)
-        img_path = os.path.join(image_dir, img_name)
-
-        with open(img_path, 'wb') as img_file:
-            for chunk in response.iter_content(1024):
-                img_file.write(chunk)
-
-        print(f"Downloaded: {img_path}")
-
-    except Exception as e:
-        print(f"Failed to download image {full_img_url}: {e}")  
-
-
-def save_extracted_data_to_file(extracted_data, excel_path):    
-    df = pd.DataFrame(extracted_data, columns=['Webbadress', 'Webbsida'])
-    df.to_excel(excel_path, index=False)
-
-
-def cleanup_folders_and_files(excel_path):
-    if os.path.exists(OUTPUT_DIR_EXTRACTED_DIVS):
-        # We delete the whole tree and recreate it to ensure it's empty
-        shutil.rmtree(OUTPUT_DIR_EXTRACTED_DIVS)
-
-    os.makedirs(OUTPUT_DIR_EXTRACTED_DIVS, exist_ok=True)
-
-    # Delete the Excel file if it exists
-    if os.path.exists(excel_path):
-        os.remove(excel_path)
-        print(f"Cleaned up existing Excel file: {excel_path}")
-
-    # Recreate the image directory inside the fresh output folder
-    image_dir = os.path.join(OUTPUT_DIR_EXTRACTED_DIVS, LOCAL_FACEBOOK_IMAGE_DIR)
-    os.makedirs(image_dir, exist_ok=True)
-
-
-def translate_swedish_date(date_str):
-    date_str = date_str.lower()
-    months = {
-        "januari": "Jan", "februari": "Feb", "mars": "Mar", 
-        "april": "Apr", "maj": "May", "juni": "Jun", 
-        "juli": "Jul", "augusti": "Aug", "september": "Sep", 
-        "oktober": "Oct", "november": "Nov", "december": "Dec",
-        # Also handle short versions if they exist in your data
-        "jan": "Jan", "feb": "Feb", "mar": "Mar", "apr": "Apr",
-        "okt": "Oct", "dec": "Dec"
-    }
-
-    for swedish, english in months.items():
-        if swedish in date_str:
-            date_str = date_str.replace(swedish, english)
-            break
-
-    return date_str
-
-
-def extract_and_save_divs_with_images(html_content, divider_regexp_pattern, base_url, excel_path, lower_comparison_date, upper_comparison_date, is_date_comparison):
-    cleanup_folders_and_files(excel_path)
-    os.makedirs(OUTPUT_DIR_EXTRACTED_DIVS, exist_ok=True)
-    image_dir = OUTPUT_DIR_EXTRACTED_DIVS + "/" + LOCAL_FACEBOOK_IMAGE_DIR
-    os.makedirs(image_dir, exist_ok=True)
-
-    soup = BeautifulSoup(html_content, 'html.parser')
-    result_html = BeautifulSoup('<html></html>', 'html.parser')
-
-    tag_html = result_html.html
-
-    if soup.head:
-        if soup.head.base:
-            soup.head.base.decompose()
-        tag_html.append(soup.head)
-
-    tag_body = result_html.new_tag('body')
-    tag_html.append(tag_body)
-
-    tag_div_main = soup.find(True, {"role": "main"})
-
-    extracted_file_paths = []
-    date_pattern = re.compile('[a-z]{3,5} [0-9]{1,2}, [0-9]{4}')
-
-    i = 0
-    # Find all sections that look like posts
-    posts = tag_div_main.find_all(['section', 'div'], class_='_a6-g')
-    for post in posts:
-        # Get the text JUST for this specific section
-        post_text = post.get_text(separator=" ", strip=True)
-
-        if re.search(divider_regexp_pattern, post_text):
-            footer = post.find(class_='_a72d')
-            if not footer:
-                footer = post.find('footer')
-
-            if footer:
-                footer_text = footer.get_text(strip=True)
-                date_match = date_pattern.search(footer_text)
-
-                if date_match:
-                    found_date = date_match.group(0).strip()
-                    translated_date = translate_swedish_date(found_date)
-                    date_obj = datetime.strptime(translated_date, "%b %d, %Y")
-
-                    print("Extracted Date:", found_date)
-
-                    if (date_obj > lower_comparison_date and date_obj < upper_comparison_date) or not is_date_comparison:
-                        tag_body.clear()
-                        tag_body.append(post)
-
-                        file_name = f'post_html_{i}.html'
-                        file_path = os.path.join(OUTPUT_DIR_EXTRACTED_DIVS, file_name)
-                        save_html(result_html, file_path)
-                        extracted_file_paths.append([file_path, "Lokal Facebook"])
-
-                        images = post.find_all('img')
-
-                        for img in images:
-                            img_url = img.get('src')
-
-                            if img_url:
-                                full_img_url = urljoin(base_url, img_url)
-                                if full_img_url.startswith("file:///"):
-                                    copy_local_image(full_img_url, image_dir)
-                                else:
-                                    download_image(full_img_url, img_url, image_dir)
-                        i += 1
-    save_extracted_data_to_file(extracted_file_paths, excel_path)
-
-
-def divide_local_facebook_and_fill_excel():
-
-    get_path_to_local_facebook()
-    base_path = f"file:///{config['path_to_local_facebook']}/"
-    file_path = os.path.join(config['path_to_local_facebook'], "this_profile's_activity_across_facebook/posts/profile_posts_1.html")
-
-    config['divider_regexp_pattern'] = get_local_facebook_divide_choice()
-
-    is_date_comparison = False
-    lower_comparison_date = get_filter_date("lower")
-    if lower_comparison_date:
-        lower_comparison_date = transform_date(lower_comparison_date)
-        is_date_comparison = True
-    else:
-        lower_comparison_date = datetime(1, 1, 1, 0, 0, 0)
-
-    upper_comparison_date = get_filter_date("upper")
-    if upper_comparison_date:
-        upper_comparison_date = transform_date(upper_comparison_date)
-        is_date_comparison = True
-    else:
-        lower_comparison_date = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
-
-    with open(file_path, 'r', encoding='utf-8') as file:
-        html_content = file.read()
-
-    extract_and_save_divs_with_images(html_content, config['divider_regexp_pattern'], base_path, LOCAL_FACEBOOK_EXCEL_PATH, lower_comparison_date, upper_comparison_date, is_date_comparison)
-
-
 def case_run():
     print(cli['run_program'])
 
     type_of_web_extraction = get_web_extraction_choice()
 
     if type_of_web_extraction == "local-facebook":
-        pages_to_crawl_file_temp = config['pages_to_crawl_file']    
-        divide_local_facebook_and_fill_excel()
+        pages_to_crawl_file_temp = config['pages_to_crawl_file']
+        facebook_processor = LocalFacebookProcessor(config)
+        facebook_processor.process()
         config['pages_to_crawl_file'] = LOCAL_FACEBOOK_EXCEL_PATH
 
     else:
