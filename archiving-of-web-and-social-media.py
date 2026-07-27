@@ -439,15 +439,6 @@ def get_web_extraction_choice():
                 print(cli['invalid_choice'])
 
 
-def get_custom_regexp():
-    print(f"\nYour current 'divider regexp' is: {config['divider_regexp_pattern']}")
-    answer_divider_regexp_pattern = input(cli['question_regexp_pattern'])
-    if answer_divider_regexp_pattern.lower() == "y":
-        new_divider_regexp = input(cli['question_get_new_regexp'])
-        config['divider_regexp_pattern'] = new_divider_regexp if new_divider_regexp else config['divider_regexp_pattern']
-        return config['divider_regexp_pattern']
-
-
 def case_run():
     print(cli['run_program'])
 

@@ -14,6 +14,15 @@ from constants import LOCAL_FACEBOOK_IMAGE_DIR
 from constants import CLI_STRINGS as cli
 
 
+def get_custom_regexp_old():
+    print(f"\nYour current 'divider regexp' is: {config['divider_regexp_pattern']}")
+    answer_divider_regexp_pattern = input(cli['question_regexp_pattern'])
+    if answer_divider_regexp_pattern.lower() == "y":
+        new_divider_regexp = input(cli['question_get_new_regexp'])
+        config['divider_regexp_pattern'] = new_divider_regexp if new_divider_regexp else config['divider_regexp_pattern']
+        return config['divider_regexp_pattern']
+
+
 def is_valid_date(date_str):
     try:
         datetime.strptime(date_str, "%Y-%m-%d")
@@ -237,9 +246,22 @@ class LocalFacebookProcessor:
 
         save_extracted_data_to_file(extracted_file_paths, excel_path)
 
+    def get_custom_regexp(self):
+        print(f"\nYour current 'divider regexp' is: {self.config['divider_regexp_pattern']}")
+        answer_divider_regexp_pattern = input(cli['question_regexp_pattern'])
+        if answer_divider_regexp_pattern.lower() == "y":
+            new_divider_regexp = input(cli['question_get_new_regexp'])
+            self.config['divider_regexp_pattern'] = new_divider_regexp if new_divider_regexp else self.config['divider_regexp_pattern']
+        return self.config['divider_regexp_pattern']
+
     def process(self):
         """Main entry point for the class."""
         get_path_to_local_facebook(self.config)
+        self.base_path = f"file:///{self.config['path_to_local_facebook']}/"
+        self.html_file_path = os.path.join(
+            self.config['path_to_local_facebook'],
+            "this_profile's_activity_across_facebook/posts/profile_posts_1.html"
+        )
         self.config['divider_regexp_pattern'] = self.get_local_facebook_divide_choice()
 
         lower = get_filter_date("lower")
