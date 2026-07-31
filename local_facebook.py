@@ -115,7 +115,7 @@ def copy_local_image(full_img_url, image_dir):
 
 def download_image(full_img_url, img_url, image_dir):
     try:
-        response = requests.get(full_img_url, stream=True)
+        response = requests.get(full_img_url, stream=True, timeout=30)
         response.raise_for_status()
 
         img_name = os.path.basename(img_url)
@@ -267,8 +267,7 @@ class LocalFacebookProcessor:
             self.upper_date = datetime.today().replace(hour=23, minute=59, second=59)
 
         if not os.path.exists(self.html_file_path):
-            print(f"Error: HTML file not found at {self.html_file_path}")
-            return
+            raise FileNotFoundError(f"HTML file not found at {self.html_file_path}")    
 
         with open(self.html_file_path, 'r', encoding='utf-8') as file:
             html_content = file.read()
