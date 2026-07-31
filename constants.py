@@ -16,7 +16,12 @@ LINKEDIN_REJECT_BUTTON = 'button[aria-label="Avvisa"]'
 FACEBOOK_COOKIE_BANNER = "//span[text()='Tillåt alla cookies']"
 ORG_NUMBER = "ORG:212000-0514"
 DELIVERY = "Gislaved-webb-1"
-TIMEOUT_SECONDS = "10"
+TIMEOUT_SECONDS = "20"
+TIMEOUT_SECONDS_SHORT = "5"
+LOCAL_FACEBOOK_EXCEL_PATH = "facebook_local.xlsx"
+OUTPUT_DIR_EXTRACTED_DIVS = "extracted_divs"
+LOCAL_FACEBOOK_IMAGE_DIR = "this_profile's_activity_across_facebook/posts/media/Foton_266433062727164/"
+#LOCAL_FACEBOOK_IMAGE_DIR = "this_profile's_activity_across_facebook/posts/media/Fotonfrantidslinjen_jAIdt6DcyQ"
 
 CLI_STRINGS = {
     'empty_systemnamn': "Systemnamn is cleared and basmetadata URSRPUNG is chosen",
@@ -25,15 +30,26 @@ CLI_STRINGS = {
     'exit_systemnamn': 'Exited menu for systemnamn',
     'question_path': "Path to file: ",
     'question_web_extraction': "What type of web extraction do you want to run? ",
+    'question_local_fb_divide': "What type of divider do you want to use? ",
     'invalid_choice': "Not a correct choice. Please try again.",
+    'invalid_date_format': "Not a correct date format, has to be YYYY-MM-DD, Please try again.",
     'run_program': "The program is running.",
     'question_change_file': "Do you want to change it y/n? ",
     'run_web_extraction': "\nRunning the web extraction ....",
     'extraction completed': "Web extraction completed!",
     'new_contract': "Enter your new Contract-file:",
-    'new_click_banner_xpath': "Enter your new Click-Banner Xpath:",
+    'new_click_banner_xpath': "Enter your new Click-Banner Xpath: ",
     'exited_program': "Exited the program",
     'welcome': "Welcome to Mediahanteraren",
     'exit_ctrlc': "Ctrl+c was pressed",
-    'goodbye': "Goodbye!"
+    'goodbye': "Goodbye!",
+    'question_regexp_pattern': "Do you want to change it y/n? ",
+    'question_get_new_regexp': "Enter your new divider regexp: ",
+    'question_local_facebook': "Do you want to change it y/n? ",
+    'question_get_path_local_facebook': "Enter your new local facebook path: ",
+    'question_lower_date': "Do you want filter with a lower date y/n? ",
+    'question_upper_date': "Do you want filter with a upper date y/n? ",
+    'question_get_filter_date': "Enter the date in format YYYY-MM-DD "
+    
+    
 }

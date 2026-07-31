@@ -1,5 +1,6 @@
 import os
 import json
+import time
 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -48,6 +49,14 @@ class WebdriverClass:
         return options
 
     @classmethod
+    def load_local_html(cls, relative_path):
+        # Get absolute path and format for browser
+        absolute_path = os.path.abspath(relative_path)
+        file_url = f"file:///{absolute_path.replace(os.sep, '/')}"
+
+        cls.load_webpage(file_url)
+
+    @classmethod
     def load_webpage(cls, url):
         cls.get_driver().get(url)
         cls._driver.implicitly_wait(const.TIMEOUT_SECONDS)
@@ -62,7 +71,8 @@ class WebdriverClass:
     def take_screenshot(cls, output_path):
         driver = cls.get_driver()
         driver.implicitly_wait(const.TIMEOUT_SECONDS)
-        page_height = cls._driver.execute_script("return document.documentElement.scrollHeight")
+        time.sleep(int(const.TIMEOUT_SECONDS_SHORT))
+        page_height = cls._driver.execute_script("return document.documentElement.scrollHeight") + 150
         driver.set_window_size(const.WIDTH_Of_SCREENSHOT, page_height)
         driver.save_screenshot(output_path)
         print(f"Saved screenshot to {output_path}")
@@ -116,8 +126,11 @@ class WebdriverClass:
         return cls.tag_has_key_value(tag, "name", "description") and cls.tag_has_key_value(tag, "content")
 
     @classmethod
-    def get_webpage_metadata(cls, url):
-        cls.load_webpage(url)
+    def get_webpage_metadata(cls, url, type_of_web_extraction):
+        if type_of_web_extraction == "local-facebook":
+            cls.load_local_html(url)
+        else:
+            cls.load_webpage(url)
         title = cls.get_title()
         try:
             all_meta_tags = cls.find_element_by_tag_name("meta")
@@ -146,7 +159,10 @@ class WebdriverClass:
     @classmethod
     def capture_full_page_screenshot_with_custom_width(cls, output_path, type_of_web_extraction, url):
         driver = cls.get_driver()
-        cls.load_webpage(url)
+        if type_of_web_extraction == "local-facebook":
+            cls.load_local_html(url)
+        else:
+            cls.load_webpage(url)
         with open("config.json", "r", encoding="utf-8") as f:
             config = json.load(f)
         try:

@@ -1,16 +1,5 @@
 """
 Created on Thu Aug 29 16:19:39 2024
-
-Experimentversion lö 22 mars 2025 med uppdaterade def create_xml_fgs och def run_web_extraction samt ny def convert_xml_to_csv.
-Uppdateringarna innebär att xml-filerna slås ihop till en och att en csv-fil skapas baserad på den sammanslagna xml-filen.
-Se #kommentarer.
-
-Exp.version må 24 mars 2025: Fixat efter diskussion möte så att de kombinerade filerna sparas i separat, parallell mapp.
-I def run_web_extraction:
-    folder_name_merged = "files_for_merged_files " + formatted_date_time
-    os.mkdir(folder_name_merged)
-Samt byta från folder_name till folder_name_merged på förekommande ställen.
-
  < Archiving-of-web-and-social-media: Takes screenshots of webpages and social media
  and converts it to tiff images for the purpose of archiving.>
      Copyright (C) 2024 Gislaveds Kommun
@@ -48,10 +37,12 @@ from openpyxl import Workbook
 from dotenv import load_dotenv
 
 from constants import PATH_TO_IMAGE_TEMP
+from constants import LOCAL_FACEBOOK_EXCEL_PATH
 from constants import ORG_NUMBER
 from constants import DELIVERY
 from constants import CLI_STRINGS as cli
 from webdriver_class import WebdriverClass
+from local_facebook import LocalFacebookProcessor
 from exception import LoginException
 from metadata import Metadata
 
@@ -71,6 +62,7 @@ def replace_unwanted_chars(filename, replacement):
 
 
 def get_part_of_string(input_string, split_by, index):
+    print(input_string)
     if not split_by:
         raise ValueError("split_by cannot be empty.")
     try:
@@ -79,10 +71,15 @@ def get_part_of_string(input_string, split_by, index):
         raise IndexError(f"Index {index} is out of range for the split string.")
 
 
-def create_file_name(url):
+def create_file_name(url, type_of_web_extraction):
     filename_first_50_chars_in_url = str(url)[:50]
-    second_part_of_filename = get_part_of_string(filename_first_50_chars_in_url, "//", 1)
-    cleaned_filename = replace_unwanted_chars(second_part_of_filename, "_")
+    if type_of_web_extraction == "local-facebook":
+        filename = filename_first_50_chars_in_url
+    else:
+        second_part_of_filename = get_part_of_string(filename_first_50_chars_in_url, "//", 1)
+        filename = second_part_of_filename
+
+    cleaned_filename = replace_unwanted_chars(filename, "_")
     unique_filename_date_time = cleaned_filename + "_" + datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
 
     return unique_filename_date_time
@@ -101,12 +98,17 @@ def prepare_and_clean_columns_and_index(data):
 
 def create_output_directories(output_base_dir, formatted_date_time):
     files_output_dir = output_base_dir / ("files for package creator " + formatted_date_time)
+    files_output_dir_tiff = files_output_dir / "TIFF"
+    files_output_dir_tiffmeta = files_output_dir / "TIFFMeta"
+
     xml_output_root_dir = output_base_dir / (XML_OUTPUT_ROOT_DIR_NAME + " " + formatted_date_time)
 
     files_output_dir.mkdir(parents=True, exist_ok=True)
     xml_output_root_dir.mkdir(parents=True, exist_ok=True)
+    files_output_dir_tiff.mkdir(parents=True, exist_ok=True)
+    files_output_dir_tiffmeta.mkdir(parents=True, exist_ok=True)
 
-    return files_output_dir, xml_output_root_dir
+    return files_output_dir_tiff, files_output_dir_tiffmeta, xml_output_root_dir
 
 
 def create_combined_xml_file(xml_elements, xml_output_root_dir):
@@ -121,9 +123,9 @@ def create_combined_xml_file(xml_elements, xml_output_root_dir):
 
 
 def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name,
-                   basemetadata):
+                   basemetadata, type_of_web_extraction):
     url = url_and_metadata_for_website[0]
-    title, keywords, description = WebdriverClass.get_webpage_metadata(url)
+    title, keywords, description = WebdriverClass.get_webpage_metadata(url, type_of_web_extraction)
 
     metadata = basemetadata.to_dict()['value']
     additional_metadata = {
@@ -161,7 +163,7 @@ def is_valid_xml(xml_file):
 
 
 def create_tiff_screenshot(url, package_creator_dir, xml_output_root_dir, type_of_web_extraction, image_temp_dir):
-    filename = create_file_name(url)
+    filename = create_file_name(url, type_of_web_extraction)
     print(f"Processing {filename}")
     output_path_png = Path(image_temp_dir) / f"{filename}.png"
     tiff_image_name = filename + '.tif'
@@ -193,14 +195,15 @@ def create_package_creator_config(basemetadata, folder_name):
                    ("Arkivbildare", arkivbildare_cleaned),
                    ("Systemnamn", systemnamn_cleaned),
                    ("Schema", config['xsd_file']),
-                   ("Contract", config['contract'])]
-
+                   ("Contract", config['contract']),
+                   ("Extension", "*.tif")]
+    
     package_creator_workbook = Workbook()
     package_creator_active_sheet = package_creator_workbook.active
     for row in config_data:
         package_creator_active_sheet.append(row)
 
-    config_file_path = folder_name + "\\Package-Creator-Metadata.xlsx"
+    config_file_path = folder_name / "Package-Creator-Metadata.xlsx"
     package_creator_workbook.save(config_file_path)
 
 
@@ -216,7 +219,7 @@ def run_web_extraction(type_of_web_extraction):
     output_base_dir = DEBUG_OUTPUT_DIR if DEBUG else Path.cwd()
     output_base_dir.mkdir(parents=True, exist_ok=True)
 
-    files_output_dir, xml_output_root_dir = create_output_directories(
+    files_output_dir_tiff, files_output_dir_tiffmeta, xml_output_root_dir = create_output_directories(
         output_base_dir,
         formatted_date_time
     )
@@ -240,7 +243,7 @@ def run_web_extraction(type_of_web_extraction):
             url = page_data[0]
             tiff_image_name = create_tiff_screenshot(
                 url,
-                files_output_dir,
+                files_output_dir_tiff,
                 xml_output_root_dir,
                 type_of_web_extraction,
                 image_temp_dir
@@ -253,8 +256,9 @@ def run_web_extraction(type_of_web_extraction):
                 formatted_date,
                 xml_file_name,
                 tiff_image_name,
-                files_output_dir,
-                basemetadata
+                files_output_dir_tiff,
+                basemetadata,
+                type_of_web_extraction
             )
             xml_elements.append(xml_element)
             print(f"Created individual XML file: {xml_file_name}")
@@ -263,6 +267,7 @@ def run_web_extraction(type_of_web_extraction):
         print(f"Extraction interrupted due to error: {e}")
     finally:
         combined_xml_file_path = create_combined_xml_file(xml_elements, xml_output_root_dir)
+        create_package_creator_config(basemetadata, files_output_dir_tiffmeta)
 
         if xml_elements:
             convert_xml_to_csv(combined_xml_file_path, xml_output_root_dir)
@@ -412,6 +417,7 @@ def get_web_extraction_choice():
     print("3: Facebook")
     print("4: LinkedIn")
     print("5: Instagram")
+    print("6: Local Facebook")
     print("************************************")
 
     while True:
@@ -427,6 +433,8 @@ def get_web_extraction_choice():
                 return "linkedin"
             case "5":
                 return "instagram"
+            case "6":
+                return "local-facebook"
             case _:
                 print(cli['invalid_choice'])
 
@@ -436,21 +444,31 @@ def case_run():
 
     type_of_web_extraction = get_web_extraction_choice()
 
-    print(f"\nYour current 'pages-to-crawl-file' is: {config['pages_to_crawl_file']}")
-    answer_change_pages_to_crawl = input(cli['question_change_file'])
-    if answer_change_pages_to_crawl.lower() == "y":
-        new_pages_to_crawl = choose_new_file_input('Pages-to-crawl-file')
-        config['pages_to_crawl_file'] = new_pages_to_crawl if new_pages_to_crawl else config['pages_to_crawl_file']
+    if type_of_web_extraction == "local-facebook":
+        pages_to_crawl_file_temp = config['pages_to_crawl_file']
+        facebook_processor = LocalFacebookProcessor(config)
+        facebook_processor.process()
+        config['pages_to_crawl_file'] = LOCAL_FACEBOOK_EXCEL_PATH
+
+    else:
+
+        print(f"\nYour current 'pages-to-crawl-file' is: {config['pages_to_crawl_file']}")
+        answer_change_pages_to_crawl = input(cli['question_change_file'])
+        if answer_change_pages_to_crawl.lower() == "y":
+            new_pages_to_crawl = choose_new_file_input('Pages-to-crawl-file')
+            config['pages_to_crawl_file'] = new_pages_to_crawl if new_pages_to_crawl else config['pages_to_crawl_file']
 
     print(f"\nYour current basemetadata-file is: {config['basemetadata_file']}")
     answer_change_basemetadata = input(cli['question_change_file'])
     if answer_change_basemetadata.lower() == "y":
         new_basemetadata = choose_new_file_input('basemetadata-file')
-        config['basemetadata_file'] = new_basemetadata if new_basemetadata else config['basemetadata_file']
+        config['basemetadata_file'] = new_basemetadata if new_basemetadata else config['basemetadata_file']    
 
     try:
         print(cli['run_web_extraction'])
         run_web_extraction(type_of_web_extraction)
+        if type_of_web_extraction == "local-facebook":
+            config['pages_to_crawl_file'] = pages_to_crawl_file_temp
         print(cli['extraction completed'])
     except LoginException as e:
         print(f"Login failed: {e}")
