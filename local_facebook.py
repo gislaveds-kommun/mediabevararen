@@ -14,15 +14,6 @@ from constants import LOCAL_FACEBOOK_IMAGE_DIR
 from constants import CLI_STRINGS as cli
 
 
-def get_custom_regexp_old():
-    print(f"\nYour current 'divider regexp' is: {config['divider_regexp_pattern']}")
-    answer_divider_regexp_pattern = input(cli['question_regexp_pattern'])
-    if answer_divider_regexp_pattern.lower() == "y":
-        new_divider_regexp = input(cli['question_get_new_regexp'])
-        config['divider_regexp_pattern'] = new_divider_regexp if new_divider_regexp else config['divider_regexp_pattern']
-        return config['divider_regexp_pattern']
-
-
 def is_valid_date(date_str):
     try:
         datetime.strptime(date_str, "%Y-%m-%d")
@@ -112,7 +103,6 @@ def copy_local_image(full_img_url, image_dir):
         local_path = local_path.lstrip('/')
 
     try:
-
         img_name = os.path.basename(local_path)
         img_path = os.path.join(image_dir, img_name)
 
@@ -204,7 +194,7 @@ class LocalFacebookProcessor:
 
         tag_div_main = soup.find(True, {"role": "main"})
         extracted_file_paths = []
-        date_pattern = re.compile('[a-z]{3,5} [0-9]{1,2}, [0-9]{4}')
+        date_pattern = re.compile(r'[a-z]{3,10} [0-9]{1,2}, [0-9]{4}', re.IGNORECASE)
 
         i = 0
         posts = tag_div_main.find_all(['section', 'div'], class_='_a6-g')
@@ -224,7 +214,7 @@ class LocalFacebookProcessor:
                         translated_date = translate_swedish_date(found_date)
                         date_obj = datetime.strptime(translated_date, "%b %d, %Y")
 
-                        if (date_obj > self.lower_date and date_obj < self.upper_date) or not self.is_date_comparison:
+                        if not self.is_date_comparison or (self.lower_date <= date_obj <= self.upper_date):
                             tag_body.clear()
                             tag_body.append(post)
 
@@ -241,7 +231,7 @@ class LocalFacebookProcessor:
                                     if full_img_url.startswith("file:///"):
                                         copy_local_image(full_img_url, self.image_dir)
                                     else:
-                                        self.download_image(full_img_url, img_url, self.image_dir)
+                                        download_image(full_img_url, img_url, self.image_dir)
                             i += 1
 
         save_extracted_data_to_file(extracted_file_paths, excel_path)
