@@ -37,14 +37,23 @@ from openpyxl import Workbook
 from dotenv import load_dotenv
 
 from constants import PATH_TO_IMAGE_TEMP
-from constants import LOCAL_FACEBOOK_EXCEL_PATH
 from constants import ORG_NUMBER
 from constants import DELIVERY
 from constants import CLI_STRINGS as cli
 from webdriver_class import WebdriverClass
-from local_facebook import LocalFacebookProcessor
 from exception import LoginException
 from metadata import Metadata
+
+from facebook_processor import LocalFacebookProcessor
+from instagram_processor import LocalInstagramProcessor
+
+from constants import (
+    LOCAL_FACEBOOK_EXCEL_PATH,
+    LOCAL_FACEBOOK_IMAGE_DIR,
+    OUTPUT_DIR_EXTRACTED_DIVS,
+    LOCAL_INSTAGRAM_EXCEL_PATH,
+    LOCAL_INSTAGRAM_IMAGE_DIR
+)
 
 DEBUG = False
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -73,7 +82,7 @@ def get_part_of_string(input_string, split_by, index):
 
 def create_file_name(url, type_of_web_extraction):
     filename_first_50_chars_in_url = str(url)[:50]
-    if type_of_web_extraction == "local-facebook":
+    if type_of_web_extraction.startswith("local-"):
         filename = filename_first_50_chars_in_url
     else:
         second_part_of_filename = get_part_of_string(filename_first_50_chars_in_url, "//", 1)
@@ -418,6 +427,7 @@ def get_web_extraction_choice():
     print("4: LinkedIn")
     print("5: Instagram")
     print("6: Local Facebook")
+    print("7: Local Instagram")
     print("************************************")
 
     while True:
@@ -435,6 +445,8 @@ def get_web_extraction_choice():
                 return "instagram"
             case "6":
                 return "local-facebook"
+            case "7":
+                return "local-instagram"
             case _:
                 print(cli['invalid_choice'])
 
@@ -444,31 +456,61 @@ def case_run():
 
     type_of_web_extraction = get_web_extraction_choice()
 
-    if type_of_web_extraction == "local-facebook":
+    # 1. RUN LOCAL PROCESSOR FIRST (if option 6 or 7 was picked)
+    if type_of_web_extraction.startswith("local-"):
         pages_to_crawl_file_temp = config['pages_to_crawl_file']
-        facebook_processor = LocalFacebookProcessor(config)
-        facebook_processor.process()
-        config['pages_to_crawl_file'] = LOCAL_FACEBOOK_EXCEL_PATH
+
+        if type_of_web_extraction == "local-facebook":
+            processor = LocalFacebookProcessor(
+                config=config,
+                output_dir=OUTPUT_DIR_EXTRACTED_DIVS,
+                image_dir_constant=LOCAL_FACEBOOK_IMAGE_DIR,
+                excel_path_constant=LOCAL_FACEBOOK_EXCEL_PATH,
+                platform_name="Facebook",
+                config_key="path_to_local_facebook"
+            )
+            excel_path = LOCAL_FACEBOOK_EXCEL_PATH
+
+        elif type_of_web_extraction == "local-instagram":
+            processor = LocalInstagramProcessor(
+                config=config,
+                output_dir=OUTPUT_DIR_EXTRACTED_DIVS,
+                image_dir_constant=LOCAL_INSTAGRAM_IMAGE_DIR,
+                excel_path_constant=LOCAL_INSTAGRAM_EXCEL_PATH,
+                platform_name="Instagram",
+                config_key="path_to_local_instagram"
+            )
+            excel_path = LOCAL_INSTAGRAM_EXCEL_PATH
+
+        # THIS CALL activates prompt_path_to_local_data() AND get_divide_choice()!
+        processor.process()
+
+        # Update config so the screenshotter uses the generated local Excel file
+        config['pages_to_crawl_file'] = excel_path
 
     else:
-
+        # Standard web crawl file prompt for live websites
         print(f"\nYour current 'pages-to-crawl-file' is: {config['pages_to_crawl_file']}")
         answer_change_pages_to_crawl = input(cli['question_change_file'])
         if answer_change_pages_to_crawl.lower() == "y":
             new_pages_to_crawl = choose_new_file_input('Pages-to-crawl-file')
             config['pages_to_crawl_file'] = new_pages_to_crawl if new_pages_to_crawl else config['pages_to_crawl_file']
 
+    # 2. THEN PROMPT FOR BASEMETADATA
     print(f"\nYour current basemetadata-file is: {config['basemetadata_file']}")
     answer_change_basemetadata = input(cli['question_change_file'])
     if answer_change_basemetadata.lower() == "y":
         new_basemetadata = choose_new_file_input('basemetadata-file')
         config['basemetadata_file'] = new_basemetadata if new_basemetadata else config['basemetadata_file']    
 
+    # 3. FINALLY RUN WEB EXTRACTION
     try:
         print(cli['run_web_extraction'])
         run_web_extraction(type_of_web_extraction)
-        if type_of_web_extraction == "local-facebook":
+
+        if type_of_web_extraction.startswith("local-"):
             config['pages_to_crawl_file'] = pages_to_crawl_file_temp
+
         print(cli['extraction completed'])
     except LoginException as e:
         print(f"Login failed: {e}")

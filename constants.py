@@ -23,6 +23,9 @@ OUTPUT_DIR_EXTRACTED_DIVS = "extracted_divs"
 LOCAL_FACEBOOK_IMAGE_DIR = "this_profile's_activity_across_facebook/posts/media/Foton_266433062727164/"
 #LOCAL_FACEBOOK_IMAGE_DIR = "this_profile's_activity_across_facebook/posts/media/Fotonfrantidslinjen_jAIdt6DcyQ"
 
+LOCAL_INSTAGRAM_IMAGE_DIR = "media/posts"
+LOCAL_INSTAGRAM_EXCEL_PATH = "instagram_local.xlsx"
+
 CLI_STRINGS = {
     'empty_systemnamn': "Systemnamn is cleared and basmetadata URSRPUNG is chosen",
     'question_choice': "Enter a choice: ",
@@ -49,7 +52,5 @@ CLI_STRINGS = {
     'question_get_path_local_facebook': "Enter your new local facebook path: ",
     'question_lower_date': "Do you want filter with a lower date y/n? ",
     'question_upper_date': "Do you want filter with a upper date y/n? ",
-    'question_get_filter_date': "Enter the date in format YYYY-MM-DD "
-    
-    
+    'question_get_filter_date': "Enter the date in format YYYY-MM-DD "   
 }
