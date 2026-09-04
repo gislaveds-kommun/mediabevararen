@@ -70,6 +70,10 @@ def replace_unwanted_chars(filename, replacement):
     return re.sub('[^a-zA-Z]', replacement, filename)
 
 
+def replace_unwanted_chars_except_num(filename, replacement):
+    return re.sub('[^a-zA-Z0-9]', replacement, filename)
+
+
 def get_part_of_string(input_string, split_by, index):
     print(input_string)
     if not split_by:
@@ -88,7 +92,7 @@ def create_file_name(url, type_of_web_extraction):
         second_part_of_filename = get_part_of_string(filename_first_50_chars_in_url, "//", 1)
         filename = second_part_of_filename
 
-    cleaned_filename = replace_unwanted_chars(filename, "_")
+    cleaned_filename = replace_unwanted_chars_except_num(filename, "")
     unique_filename_date_time = cleaned_filename + "_" + datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
 
     return unique_filename_date_time
@@ -132,7 +136,7 @@ def create_combined_xml_file(xml_elements, xml_output_root_dir):
 
 
 def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, tiff_image_name, folder_name,
-                   basemetadata, type_of_web_extraction):
+                   basemetadata, type_of_web_extraction,info_date):
     url = url_and_metadata_for_website[0]
     title, keywords, description = WebdriverClass.get_webpage_metadata(url, type_of_web_extraction)
 
@@ -146,7 +150,7 @@ def create_xml_fgs(url_and_metadata_for_website, formatted_date, xml_file_name, 
         "webpagekeywords": keywords,
         "webpagedescription": description,
         "webpagecurrenturl": url,
-        "informationsdatum": formatted_date,
+        "informationsdatum": info_date,
         "dokumentfilnamn": tiff_image_name
     }
     metadata.update(additional_metadata)
@@ -212,7 +216,7 @@ def create_package_creator_config(basemetadata, folder_name):
     for row in config_data:
         package_creator_active_sheet.append(row)
 
-    config_file_path = folder_name / "Package-Creator-Metadata.xlsx"
+    config_file_path = folder_name / "PC-Metadata.xlsx"
     package_creator_workbook.save(config_file_path)
 
 
@@ -260,6 +264,11 @@ def run_web_extraction(type_of_web_extraction):
             print(f"Converted to tiff: {tiff_image_name}")
 
             xml_file_name = get_part_of_string(tiff_image_name, ".", 0) + ".xml"
+            if type_of_web_extraction.startswith("local-"):
+                info_date = url.split("--")[1].replace(".html", "")
+            else:
+                info_date = formatted_date
+
             xml_element = create_xml_fgs(
                 page_data,
                 formatted_date,
@@ -267,8 +276,13 @@ def run_web_extraction(type_of_web_extraction):
                 tiff_image_name,
                 files_output_dir_tiff,
                 basemetadata,
-                type_of_web_extraction
+                type_of_web_extraction,
+                info_date
             )
+            xml_file_path = Path(files_output_dir_tiff) / xml_file_name
+            if not is_valid_xml(xml_file_path):
+                raise ValueError(f"Individual XML file '{xml_file_name}' failed XSD validation.")
+
             xml_elements.append(xml_element)
             print(f"Created individual XML file: {xml_file_name}")
     except Exception as e:
@@ -460,6 +474,7 @@ def case_run():
     if type_of_web_extraction.startswith("local-"):
         pages_to_crawl_file_temp = config['pages_to_crawl_file']
 
+
         if type_of_web_extraction == "local-facebook":
             processor = LocalFacebookProcessor(
                 config=config,
@@ -508,13 +523,12 @@ def case_run():
         print(cli['run_web_extraction'])
         run_web_extraction(type_of_web_extraction)
 
-        if type_of_web_extraction.startswith("local-"):
-            config['pages_to_crawl_file'] = pages_to_crawl_file_temp
-
         print(cli['extraction completed'])
     except LoginException as e:
         print(f"Login failed: {e}")
     finally:
+        if type_of_web_extraction.startswith("local-"):
+            config['pages_to_crawl_file'] = pages_to_crawl_file_temp
         WebdriverClass.quit_driver()
 
 

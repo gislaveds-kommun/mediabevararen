@@ -175,8 +175,8 @@ class LocalInstagramProcessor(BaseLocalProcessor):
                     # 7. Append rewritten post to body and save HTML snapshot
                     tag_body.clear()
                     tag_body.append(post)
-
-                    file_name = f'post_html_{i}.html'
+                    info_date = date_obj.strftime("%Y-%m-%d")
+                    file_name = f'post_html_{i}--{info_date}.html'
                     file_path = os.path.join(self.output_dir, file_name)
                     save_html(result_html, file_path)
                     extracted_file_paths.append([file_path, "Lokal Instagram"])
@@ -185,3 +185,4 @@ class LocalInstagramProcessor(BaseLocalProcessor):
 
         save_extracted_data_to_file(extracted_file_paths, self.excel_path)
         print(f"Successfully extracted {i} Instagram posts to {self.excel_path}")
+        
