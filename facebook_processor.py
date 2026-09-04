@@ -94,6 +94,7 @@ class LocalFacebookProcessor(BaseLocalProcessor):
                         found_date = date_match.group(0).strip()
                         translated_date = translate_swedish_date(found_date)
                         date_obj = datetime.strptime(translated_date, "%b %d, %Y")
+                        
 
                         # Date filtering logic inherited from BaseLocalProcessor
                         if not self.is_date_comparison or (self.lower_date <= date_obj <= self.upper_date):
@@ -116,5 +117,8 @@ class LocalFacebookProcessor(BaseLocalProcessor):
                                     else:
                                         download_image(full_img_url, img_url, self.image_dir)
                             i += 1
-
+                    else:
+                        print("No date found.")
+                else:
+                    print("No footer found.")
         save_extracted_data_to_file(extracted_file_paths, self.excel_path)

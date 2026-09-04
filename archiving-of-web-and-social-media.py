@@ -474,7 +474,6 @@ def case_run():
     if type_of_web_extraction.startswith("local-"):
         pages_to_crawl_file_temp = config['pages_to_crawl_file']
 
-
         if type_of_web_extraction == "local-facebook":
             processor = LocalFacebookProcessor(
                 config=config,

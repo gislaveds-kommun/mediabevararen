@@ -111,25 +111,24 @@ class LocalInstagramProcessor(BaseLocalProcessor):
         MEDIA_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.webp', '.mp4', '.mov', '.avi')
         root_export_dir = self.config.get(self.config_key, "")
 
-        # 2. Find all individual post wrappers
         posts = tag_main.find_all('div', class_='_a6-g')
         print(f"Found {len(posts)} Instagram posts in file.")
 
-        i = 0  # Counter for saved file numbering
+        i = 0  
         for post in posts:
             post_html_str = str(post)
 
-            # 3. Apply Regex filter check
             if re.search(self.config.get('divider_regexp_pattern', r'.*'), post_html_str, re.IGNORECASE):
 
-                # 4. Find Instagram post timestamp in footer div (class `_a6-o`)
                 footer = post.find('div', class_='_a6-o')
                 date_obj = self.parse_instagram_date(footer.get_text(strip=True)) if footer else None
 
-                # 5. Apply date filter logic
-                if date_obj is None or (not self.is_date_comparison or (self.lower_date <= date_obj <= self.upper_date)):
+                if date_obj is None:
+                    print("No date found.")
+                    continue
 
-                    # 6. Process media tags AND rewrite HTML paths BEFORE saving the file
+                if not self.is_date_comparison or (self.lower_date <= date_obj <= self.upper_date):
+
                     media_elements = post.find_all(['img', 'video', 'a'])
                     root_export_dir = self.config.get(self.config_key, "")
 
@@ -143,11 +142,9 @@ class LocalInstagramProcessor(BaseLocalProcessor):
 
                             img_name = os.path.basename(media_url)
 
-                            # Build direct path on disk using the root export folder
                             clean_rel_path = media_url.replace('/', os.sep)
                             abs_file_path = os.path.join(root_export_dir, clean_rel_path)
 
-                            # If direct path exists, use it; otherwise recursively search export folder
                             if os.path.exists(abs_file_path):
                                 full_media_url = Path(abs_file_path).as_uri()
                             else:
@@ -162,17 +159,14 @@ class LocalInstagramProcessor(BaseLocalProcessor):
                                 else:
                                     full_media_url = urljoin(self.base_path, media_url)
 
-                            # Copy media file
                             if full_media_url.startswith("file:///"):
                                 copy_local_image(full_media_url, self.image_dir)
                             else:
                                 download_image(full_media_url, media_url, self.image_dir)
 
-                            # REWRITE HTML tag using full relative path from extracted_divs
                             rel_image_dir = os.path.relpath(self.image_dir, self.output_dir).replace('\\', '/')
                             elem[attr_name] = f"{rel_image_dir}/{img_name}"
 
-                    # 7. Append rewritten post to body and save HTML snapshot
                     tag_body.clear()
                     tag_body.append(post)
                     info_date = date_obj.strftime("%Y-%m-%d")
@@ -185,4 +179,3 @@ class LocalInstagramProcessor(BaseLocalProcessor):
 
         save_extracted_data_to_file(extracted_file_paths, self.excel_path)
         print(f"Successfully extracted {i} Instagram posts to {self.excel_path}")
-        
