@@ -70,17 +70,15 @@ def copy_local_image(full_img_url, image_dir, local_root_dir=None):
 
     img_name = os.path.basename(local_path)
     dest_path = os.path.join(image_dir, img_name)
-
-    # 1. Try direct copy if the path is resolved correctly
+    
     if os.path.exists(local_path):
         try:
             shutil.copy(local_path, dest_path)
             print(f"Copied: {dest_path}")
-            return
+            return True
         except Exception as e:
             print(f"Failed direct copy for {local_path}: {e}")
 
-    # 2. Fallback: Search recursively inside the local export directory if path was slightly off
     if local_root_dir and os.path.exists(local_root_dir):
         for root, _, files in os.walk(local_root_dir):
             if img_name in files:
@@ -88,11 +86,12 @@ def copy_local_image(full_img_url, image_dir, local_root_dir=None):
                 try:
                     shutil.copy(found_path, dest_path)
                     print(f"Copied (found in subfolder): {dest_path}")
-                    return
+                    return True
                 except Exception as e:
                     print(f"Failed fallback copy for {found_path}: {e}")
 
     print(f"Could not locate media file on disk: {img_name}")
+    return False
 
 
 def download_image(full_img_url, img_url, image_dir):

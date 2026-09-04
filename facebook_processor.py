@@ -113,7 +113,9 @@ class LocalFacebookProcessor(BaseLocalProcessor):
                                 if img_url:
                                     full_img_url = urljoin(self.base_path, img_url)
                                     if full_img_url.startswith("file:///"):
-                                        copy_local_image(full_img_url, self.image_dir)
+                                        if not copy_local_image(full_img_url, self.image_dir):
+                                            print("Copy local image failed")
+                                            continue
                                     else:
                                         download_image(full_img_url, img_url, self.image_dir)
                             i += 1

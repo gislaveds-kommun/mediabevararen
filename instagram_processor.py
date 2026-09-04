@@ -160,7 +160,9 @@ class LocalInstagramProcessor(BaseLocalProcessor):
                                     full_media_url = urljoin(self.base_path, media_url)
 
                             if full_media_url.startswith("file:///"):
-                                copy_local_image(full_media_url, self.image_dir)
+                                if not copy_local_image(full_media_url, self.image_dir):
+                                    print("Copy local image failed") 
+                                    continue
                             else:
                                 download_image(full_media_url, media_url, self.image_dir)
 
