@@ -50,7 +50,6 @@ class BaseLocalProcessor(ABC):
         """Generic prompt to update local export path and save to disk."""
         current_path = self.config.get(self.config_key, "")
 
-        # 1. If path is missing or empty, force the user to enter one
         if not current_path:
             print(f"\nNo path set for local {self.platform_name}.")
             while not current_path:
@@ -59,7 +58,6 @@ class BaseLocalProcessor(ABC):
             self.config[self.config_key] = current_path
             self.save_config()
 
-        # 2. If path already exists, ask if they want to change it
         else:
             print(f"\nYour current path to local {self.platform_name} is: {current_path}")
             answer = input(f"Do you want to update the path for {self.platform_name}? (y/n): ")
@@ -79,7 +77,6 @@ class BaseLocalProcessor(ABC):
 
         self.config['divider_regexp_pattern'] = self.get_divide_choice()
 
-        # Shared Date Filtering Prompt
         lower = get_filter_date("lower")
         if lower:
             self.lower_date = transform_date(lower)
@@ -95,7 +92,6 @@ class BaseLocalProcessor(ABC):
         if not os.path.exists(self.html_file_path):
             raise FileNotFoundError(f"HTML file not found at {self.html_file_path}")
 
-        # PASS self.image_dir DIRECTLY HERE:
         cleanup_folders_and_files(self.output_dir, self.image_dir, self.excel_path)
 
         with open(self.html_file_path, 'r', encoding='utf-8') as file:

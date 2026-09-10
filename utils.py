@@ -70,7 +70,7 @@ def copy_local_image(full_img_url, image_dir, local_root_dir=None):
 
     img_name = os.path.basename(local_path)
     dest_path = os.path.join(image_dir, img_name)
-    
+
     if os.path.exists(local_path):
         try:
             shutil.copy(local_path, dest_path)
@@ -120,15 +120,12 @@ def save_extracted_data_to_file(extracted_data, excel_path):
 def cleanup_folders_and_files(output_dir, image_dir, excel_path):
     if os.path.exists(output_dir):
         shutil.rmtree(output_dir)
-        
-    # Recreate parent output directory
+
     os.makedirs(output_dir, exist_ok=True)
 
-    # Clean up Excel file
     if os.path.exists(excel_path):
         os.remove(excel_path)
         print(f"Cleaned up existing Excel file: {excel_path}")
 
-    # Recreate image directory directly inside parent output directory
     os.makedirs(image_dir, exist_ok=True)
     print(f"Prepared image directory: {image_dir}")

@@ -470,7 +470,6 @@ def case_run():
 
     type_of_web_extraction = get_web_extraction_choice()
 
-    # 1. RUN LOCAL PROCESSOR FIRST (if option 6 or 7 was picked)
     if type_of_web_extraction.startswith("local-"):
         pages_to_crawl_file_temp = config['pages_to_crawl_file']
 
@@ -496,28 +495,22 @@ def case_run():
             )
             excel_path = LOCAL_INSTAGRAM_EXCEL_PATH
 
-        # THIS CALL activates prompt_path_to_local_data() AND get_divide_choice()!
         processor.process()
-
-        # Update config so the screenshotter uses the generated local Excel file
         config['pages_to_crawl_file'] = excel_path
 
     else:
-        # Standard web crawl file prompt for live websites
         print(f"\nYour current 'pages-to-crawl-file' is: {config['pages_to_crawl_file']}")
         answer_change_pages_to_crawl = input(cli['question_change_file'])
         if answer_change_pages_to_crawl.lower() == "y":
             new_pages_to_crawl = choose_new_file_input('Pages-to-crawl-file')
             config['pages_to_crawl_file'] = new_pages_to_crawl if new_pages_to_crawl else config['pages_to_crawl_file']
 
-    # 2. THEN PROMPT FOR BASEMETADATA
     print(f"\nYour current basemetadata-file is: {config['basemetadata_file']}")
     answer_change_basemetadata = input(cli['question_change_file'])
     if answer_change_basemetadata.lower() == "y":
         new_basemetadata = choose_new_file_input('basemetadata-file')
         config['basemetadata_file'] = new_basemetadata if new_basemetadata else config['basemetadata_file']    
-
-    # 3. FINALLY RUN WEB EXTRACTION
+        
     try:
         print(cli['run_web_extraction'])
         run_web_extraction(type_of_web_extraction)

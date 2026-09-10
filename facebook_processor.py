@@ -94,9 +94,7 @@ class LocalFacebookProcessor(BaseLocalProcessor):
                         found_date = date_match.group(0).strip()
                         translated_date = translate_swedish_date(found_date)
                         date_obj = datetime.strptime(translated_date, "%b %d, %Y")
-                        
 
-                        # Date filtering logic inherited from BaseLocalProcessor
                         if not self.is_date_comparison or (self.lower_date <= date_obj <= self.upper_date):
                             tag_body.clear()
                             tag_body.append(post)

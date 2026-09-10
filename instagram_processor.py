@@ -64,20 +64,16 @@ class LocalInstagramProcessor(BaseLocalProcessor):
         """
         Parses dates like 'mars 17, 2026 5:17 em' or 'dec 09, 2025 2:39 em'
         """
-        # Clean text
         date_text = date_text.strip().lower()
 
-        # Handle Swedish time indicators (em = pm, fm = am)
         date_text = date_text.replace(" em", " pm").replace(" fm", " am")
-        
-        # Translate month name (e.g., 'mars' -> 'Mar', 'dec' -> 'Dec')
+
         translated_date_str = translate_swedish_date(date_text)
 
-        # Parse string format: "Mar 17, 2026 5:17 pm"
         try:
             return datetime.strptime(translated_date_str, "%b %d, %Y %I:%M %p")
         except ValueError:
-            # Fallback format if seconds or 24h format are used without am/pm
+
             try:
                 date_part = date_text.split(" ")[0:3]
                 date_only = translate_swedish_date(" ".join(date_part))
@@ -100,7 +96,6 @@ class LocalInstagramProcessor(BaseLocalProcessor):
         tag_body = result_html.new_tag('body')
         tag_html.append(tag_body)
 
-        # 1. Target Instagram's main content area
         tag_main = soup.find('main', role='main') or soup.find('div', class_='_a705')
 
         if not tag_main:
@@ -177,7 +172,7 @@ class LocalInstagramProcessor(BaseLocalProcessor):
                     save_html(result_html, file_path)
                     extracted_file_paths.append([file_path, "Lokal Instagram"])
 
-                    i += 1  # Increment saved post counter
+                    i += 1 
 
         save_extracted_data_to_file(extracted_file_paths, self.excel_path)
         print(f"Successfully extracted {i} Instagram posts to {self.excel_path}")
