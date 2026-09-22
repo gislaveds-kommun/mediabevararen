@@ -3,9 +3,10 @@
     "xsd_file": "FREDA-GS-Webbsidor-v1_0.xsd",
     "contract": "Contract_2020-02-24-13-03-23-WEB.xml",
     "systemnamn": "",
-    "pages_to_crawl_file": "pages_gislaved_konsthall_instagram.xlsx",
-    "basemetadata_file": "basmetadata_konsthallens hemsida.xlsx",
+    "pages_to_crawl_file": "pages_gislaved_se_extern_webb2.xlsx",
+    "basemetadata_file": "basmetadata_konsthallens_instagram.xlsx",
     "website_click_cookie_banner_xpath": "//button[contains(@class, 'primary') and contains(text(), 'Godkänn')]",
-    "divider_regexp_pattern": "har\\s+lagt\\s+till\\s+.+\\s+foto.?\\.",
-    "path_to_local_facebook": "C:\\Users\\jerber01\\Documents\\Media\\Arkivering_Facebook_2026"
+    "divider_regexp_pattern": "<img",
+    "path_to_local_facebook": "C:\\Users\\jerber01\\Documents\\Media\\Arkivering_Facebook_2026",
+    "path_to_local_instagram": "C:\\Users\\jerber01\\Documents\\Media\\instagram-gislaveds_konsthall-2026-05-29"
 }

@@ -1,14 +1,15 @@
 import os
 import json
 import time
+import base64
 
+from selenium.webdriver.support.ui import WebDriverWait
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 
@@ -70,12 +71,73 @@ class WebdriverClass:
     @classmethod
     def take_screenshot(cls, output_path):
         driver = cls.get_driver()
-        driver.implicitly_wait(const.TIMEOUT_SECONDS)
-        time.sleep(int(const.TIMEOUT_SECONDS_SHORT))
-        page_height = cls._driver.execute_script("return document.documentElement.scrollHeight") + 150
-        driver.set_window_size(const.WIDTH_Of_SCREENSHOT, page_height)
-        driver.save_screenshot(output_path)
-        print(f"Saved screenshot to {output_path}")
+
+        # 1. Force all WOW.js animated elements to be 100% visible immediately
+        try:
+            driver.execute_script("""
+                // Force visible on WOW.js / animate.css elements
+                document.querySelectorAll('.wow').forEach(function(el) {
+                    el.style.visibility = 'visible';
+                    el.style.opacity = '1';
+                    el.style.animationName = 'none';
+                });
+                // Trigger window scroll event to kickstart lazy scripts
+                window.dispatchEvent(new Event('scroll'));
+            """)
+        except Exception as e:
+            print(f"Warning: Could not reveal WOW elements: {e}")
+
+        # 2. Wait for images to render
+        try:
+            WebDriverWait(driver, const.TIMEOUT_SECONDS).until(
+                lambda d: d.execute_script(
+                    "return Array.from(document.images).every(img => img.complete && img.naturalWidth !== 0);"
+                )
+            )
+        except Exception as e:
+            print(f"Warning: Timed out waiting for images: {e}")
+
+        time.sleep(1)
+
+        # 3. Capture exact layout dimensions
+        try:
+            target_width = int(const.WIDTH_Of_SCREENSHOT)
+
+            content_height = driver.execute_script(
+                "return Math.max("
+                "document.body.scrollHeight, document.documentElement.scrollHeight, "
+                "document.body.offsetHeight, document.documentElement.offsetHeight, "
+                "document.body.clientHeight, document.documentElement.clientHeight);"
+            )
+
+            driver.execute_cdp_cmd("Emulation.setDeviceMetricsOverride", {
+                "width": target_width,
+                "height": int(content_height),
+                "deviceScaleFactor": 1,
+                "mobile": False
+            })
+
+            screenshot_data = driver.execute_cdp_cmd("Page.captureScreenshot", {
+                "format": "png",
+                "captureBeyondViewport": True
+            })
+
+            with open(output_path, "wb") as f:
+                f.write(base64.b64decode(screenshot_data["data"]))
+
+            # Cleanup viewport overrides & reset window dimensions
+            driver.execute_cdp_cmd("Emulation.clearDeviceMetricsOverride", {})
+            driver.set_window_size(const.WIDTH_Of_SCREENSHOT, const.HEIGHT_Of_SCREENSHOT)
+
+            print(f"Saved full-page screenshot to {output_path}")
+
+        except Exception as e:
+            print(f"CDP capture failed, falling back: {e}")
+            page_height = driver.execute_script(
+                "return Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);"
+            )
+            driver.set_window_size(const.WIDTH_Of_SCREENSHOT, page_height)
+            driver.save_screenshot(output_path)
 
     @classmethod
     def find_element_by_id(cls, name):
@@ -127,7 +189,7 @@ class WebdriverClass:
 
     @classmethod
     def get_webpage_metadata(cls, url, type_of_web_extraction):
-        if type_of_web_extraction == "local-facebook":
+        if type_of_web_extraction.startswith("local-"):
             cls.load_local_html(url)
         else:
             cls.load_webpage(url)
@@ -159,7 +221,7 @@ class WebdriverClass:
     @classmethod
     def capture_full_page_screenshot_with_custom_width(cls, output_path, type_of_web_extraction, url):
         driver = cls.get_driver()
-        if type_of_web_extraction == "local-facebook":
+        if type_of_web_extraction.startswith("local-"):
             cls.load_local_html(url)
         else:
             cls.load_webpage(url)
