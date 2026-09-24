@@ -33,7 +33,7 @@ Install them using pip by typing the following in the terminal.
 See https://pip.pypa.io/en/stable/installation/ for help installing pip.
  
 ```
-python -m pip install Pillow pandas lxml selenium webdriver-manager openpyxl python-dotenv
+py -m pip install Pillow pandas lxml selenium webdriver-manager openpyxl python-dotenv beautifulsoup4
 ```
 
 # Usage
@@ -44,10 +44,18 @@ In order to start the program in command line you navigate to the folder with th
 then write the command: 
  
 ```
-python3 archiving-of-web-and-social-media.py
+py archiving-of-web-and-social-media.py
 ```
 
 In the command line menu in the started program you can change many settings and input data and then run the webextraction.
+
+or
+
+Trigger a singel website screenshot from command line with the parameters website, type and the xpath for cookie banner.
+
+```
+py archiving-of-web-and-social-media.py "https://www.gislaved.se" "website-click" "//button[contains(@class, 'primary') and contains(text(), 'Godkänn')]"
+```
 
 # Configuration
 There are already sample data and config settings that work out of the box, except the **.env** that
