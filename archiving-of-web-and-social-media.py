@@ -121,7 +121,7 @@ def create_output_directories(output_base_dir, formatted_date_time):
     files_output_dir_tiff.mkdir(parents=True, exist_ok=True)
     files_output_dir_tiffmeta.mkdir(parents=True, exist_ok=True)
 
-    return files_output_dir_tiff, files_output_dir_tiffmeta, xml_output_root_dir
+    return files_output_dir_tiff, files_output_dir_tiffmeta, xml_output_root_dir, files_output_dir
 
 
 def create_combined_xml_file(xml_elements, xml_output_root_dir):
@@ -173,6 +173,115 @@ def is_valid_xml(xml_file):
         print(f"Unexpected error: {e}")
 
     return False
+
+
+def process_single_url_for_uipath(url_to_process: str, extraction_type: str = "website-no-banner") -> str:
+    """
+    Automated entry point for UiPath Orchestrator execution.
+    Process a single URL without CLI prompts and returns the path to the generated TIFF file.
+    """
+    global config
+
+    if 'config' not in globals() or not config:
+        with open("config.json", "r", encoding="utf-8") as f:
+            config = json.load(f)
+
+    now = datetime.now()
+    formatted_date = now.strftime('%Y-%m-%d')
+    formatted_date_time = now.strftime('%Y-%m-%d-%H-%M-%S')
+
+    output_base_dir = Path.cwd()
+    output_base_dir.mkdir(parents=True, exist_ok=True)
+
+    files_output_dir_tiff, files_output_dir_tiffmeta, xml_output_root_dir, files_output_dir = create_output_directories(
+        output_base_dir,
+        formatted_date_time
+    )
+
+    image_temp_dir = Path(PATH_TO_IMAGE_TEMP)
+    image_temp_dir.mkdir(parents=True, exist_ok=True)
+
+    basemetadata = pd.read_excel(config['basemetadata_file'], sheet_name=0, index_col=0)
+    basemetadata = prepare_and_clean_columns_and_index(basemetadata)
+
+    try:
+        tiff_image_name = create_tiff_screenshot(
+            url_to_process,
+            files_output_dir_tiff,
+            xml_output_root_dir,
+            extraction_type,
+            image_temp_dir
+        )
+
+        xml_file_name = get_part_of_string(tiff_image_name, ".", 0) + ".xml"
+        page_data = [url_to_process, get_domain_from_url(url_to_process)]
+
+        xml_element = create_xml_fgs(
+            page_data,
+            formatted_date,
+            xml_file_name,
+            tiff_image_name,
+            files_output_dir_tiff,
+            basemetadata,
+            extraction_type,
+            formatted_date
+        )
+
+        xml_file_path = Path(files_output_dir_tiff) / xml_file_name
+        if not is_valid_xml(xml_file_path):
+            raise ValueError(f"Generated XML file '{xml_file_name}' failed XSD validation.")
+
+        combined_xml_file_path = create_combined_xml_file([xml_element], xml_output_root_dir)
+        create_package_creator_config(basemetadata, files_output_dir_tiffmeta)
+        create_rpa_summary_excel(files_output_dir, files_output_dir_tiff, formatted_date_time)
+        convert_xml_to_csv(combined_xml_file_path, xml_output_root_dir)
+
+        output_tiff_path = str(Path(files_output_dir_tiff) / tiff_image_name)
+        print(f"UiPath Job Success: Saved TIFF to {output_tiff_path}")
+        return output_tiff_path
+
+    except Exception as e:
+        print(f"UiPath Automation Failed: {e}")
+        raise e
+    finally:
+        shutil.rmtree(image_temp_dir, ignore_errors=True)
+        WebdriverClass.quit_driver()
+
+
+def create_rpa_summary_excel(output_dir, tiff_folder_path, formatted_date_time):
+    """
+    Creates the Package Creator status Excel file with specific column positioning
+    matching the LTA Package Creator requirements.
+    """
+    wb = Workbook()
+    ws = wb.active
+
+    # Format timestamp to match "YYYY-MM-DD HH MM" format (e.g., 2026-09-23 23 35)
+    time_rpa_job = datetime.now().strftime('%Y-%m-%d %H %M')
+    schema_name = config.get('xsd_file', 'FREDA-GS-Webbsidor-v1_0.xsd')
+
+    ws['A1'] = "Files for packa creator"
+    ws['B1'] = "Time RPA Archiving job"
+    ws['C1'] = "LTA Package creator"
+    ws['D1'] = "Schema"
+    ws['E1'] = "LTA FTP (1=Locked)"
+    ws['F1'] = "Path To Zip"
+    ws['G1'] = "Zip file received and contract sent"
+    ws['H1'] = "LTA Processed without errors"
+
+    ws['A2'] = str(tiff_folder_path)
+    ws['B2'] = time_rpa_job
+    ws['C2'] = 0
+    ws['D2'] = schema_name
+    ws['E2'] = 1
+    ws['F2'] = 0
+    ws['G2'] = 0
+    ws['H2'] = 0
+
+    excel_file_path = Path(output_dir) / f"PackageCreator_Status_{formatted_date_time}.xlsx"
+    wb.save(excel_file_path)
+    print(f"RPA Summary Excel created: {excel_file_path}")
+    return excel_file_path
 
 
 def create_tiff_screenshot(url, package_creator_dir, xml_output_root_dir, type_of_web_extraction, image_temp_dir):
@@ -232,7 +341,7 @@ def run_web_extraction(type_of_web_extraction):
     output_base_dir = DEBUG_OUTPUT_DIR if DEBUG else Path.cwd()
     output_base_dir.mkdir(parents=True, exist_ok=True)
 
-    files_output_dir_tiff, files_output_dir_tiffmeta, xml_output_root_dir = create_output_directories(
+    files_output_dir_tiff, files_output_dir_tiffmeta, xml_output_root_dir, files_output_dir = create_output_directories(
         output_base_dir,
         formatted_date_time
     )
@@ -291,6 +400,7 @@ def run_web_extraction(type_of_web_extraction):
     finally:
         combined_xml_file_path = create_combined_xml_file(xml_elements, xml_output_root_dir)
         create_package_creator_config(basemetadata, files_output_dir_tiffmeta)
+        create_rpa_summary_excel(files_output_dir, files_output_dir_tiff, formatted_date_time)
 
         if xml_elements:
             convert_xml_to_csv(combined_xml_file_path, xml_output_root_dir)
@@ -510,7 +620,7 @@ def case_run():
     if answer_change_basemetadata.lower() == "y":
         new_basemetadata = choose_new_file_input('basemetadata-file')
         config['basemetadata_file'] = new_basemetadata if new_basemetadata else config['basemetadata_file']    
-        
+
     try:
         print(cli['run_web_extraction'])
         run_web_extraction(type_of_web_extraction)
@@ -596,6 +706,7 @@ def start_program():
 
 
 if __name__ == "__main__":
+    load_dotenv()
 
     try:
         with open("config.json", "r", encoding="utf-8") as f:
@@ -607,13 +718,25 @@ if __name__ == "__main__":
         print("Error: Invalid JSON format in config.json.")
         exit_program()
 
-    load_dotenv()
-    try:
-        start_program()
-    except KeyboardInterrupt:
-        print(cli['exit_ctrlc'])
-    except Exception as e:
-        print(f"Exited with error: {e}")
-        traceback.print_exc()
-    finally:
-        exit_program()
+    # If arguments are passed from command line / UiPath
+    if len(sys.argv) > 1:
+        target_url = sys.argv[1]
+        extraction_type = sys.argv[2] if len(sys.argv) > 2 else "website-click"
+        
+        # If a custom XPath argument is provided, override config.json
+        if len(sys.argv) > 3 and sys.argv[3].strip():
+            config['website_click_cookie_banner_xpath'] = sys.argv[3]
+            print(f"Using custom cookie banner XPath: {config['website_click_cookie_banner_xpath']}")
+
+        process_single_url_for_uipath(target_url, extraction_type)
+    else:
+        # Fallback to standard interactive CLI menu
+        try:
+            start_program()
+        except KeyboardInterrupt:
+            print(cli['exit_ctrlc'])
+        except Exception as e:
+            print(f"Exited with error: {e}")
+            traceback.print_exc()
+        finally:
+            exit_program()
