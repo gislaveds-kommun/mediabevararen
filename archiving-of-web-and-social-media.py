@@ -233,7 +233,10 @@ def process_single_url_for_uipath(url_to_process: str, extraction_type: str = "w
 
         combined_xml_file_path = create_combined_xml_file([xml_element], xml_output_root_dir)
         create_package_creator_config(basemetadata, files_output_dir_tiffmeta)
-        create_rpa_summary_excel(files_output_dir, files_output_dir_tiff, formatted_date_time)
+        excel_file_path = create_rpa_summary_excel(files_output_dir, files_output_dir_tiff, formatted_date_time)
+
+        with open("last_output_package_creator_excel_path.txt", "w", encoding="utf-8") as f:
+            f.write(str(excel_file_path))
         convert_xml_to_csv(combined_xml_file_path, xml_output_root_dir)
 
         output_tiff_path = str(Path(files_output_dir_tiff) / tiff_image_name)
