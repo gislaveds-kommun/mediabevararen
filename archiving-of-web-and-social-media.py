@@ -263,8 +263,8 @@ def create_rpa_summary_excel(output_dir, tiff_folder_path, formatted_date_time):
     time_rpa_job = datetime.now().strftime('%Y-%m-%d %H %M')
     schema_name = config.get('xsd_file', 'FREDA-GS-Webbsidor-v1_0.xsd')
 
-    ws['A1'] = "Files for packa creator"
-    ws['B1'] = "Time RPA Archiving job"
+    ws['A1'] = "Files for package creator"
+    ws['B1'] = "Time for RPA Archiving job"
     ws['C1'] = "LTA Package creator"
     ws['D1'] = "Schema"
     ws['E1'] = "LTA FTP (1=Locked)"
