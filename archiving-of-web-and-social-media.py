@@ -175,9 +175,12 @@ def is_valid_xml(xml_file):
     return False
 
 
-def process_single_url_for_uipath(url_to_process: str, extraction_type: str = "website-no-banner") -> str:
+def process_single_url_from_external_system(
+        url_to_process: str,
+        extraction_type: str = "website-no-banner",
+        custom_metadata_file: str = None) -> str:
     """
-    Automated entry point for UiPath Orchestrator execution.
+    Automated entry point for execution from external system.
     Process a single URL without CLI prompts and returns the path to the generated TIFF file.
     """
     global config
@@ -185,6 +188,10 @@ def process_single_url_for_uipath(url_to_process: str, extraction_type: str = "w
     if 'config' not in globals() or not config:
         with open("config.json", "r", encoding="utf-8") as f:
             config = json.load(f)
+
+    if custom_metadata_file and Path(custom_metadata_file).is_file():
+        config['basemetadata_file'] = custom_metadata_file
+        print(f"Using dynamic metadata file: {custom_metadata_file}")
 
     now = datetime.now()
     formatted_date = now.strftime('%Y-%m-%d')
@@ -203,7 +210,7 @@ def process_single_url_for_uipath(url_to_process: str, extraction_type: str = "w
 
     basemetadata = pd.read_excel(config['basemetadata_file'], sheet_name=0, index_col=0)
     basemetadata = prepare_and_clean_columns_and_index(basemetadata)
-
+    
     try:
         tiff_image_name = create_tiff_screenshot(
             url_to_process,
@@ -721,17 +728,19 @@ if __name__ == "__main__":
         print("Error: Invalid JSON format in config.json.")
         exit_program()
 
-    # If arguments are passed from command line / UiPath
+    # If arguments are passed from command line / external system
     if len(sys.argv) > 1:
         target_url = sys.argv[1]
-        extraction_type = sys.argv[2] if len(sys.argv) > 2 else "website-click"
+        extraction_type = sys.argv[2] if len(sys.argv) > 2 else "website-no-banner"
         
-        # If a custom XPath argument is provided, override config.json
+        # Optional 3rd CLI argument: Custom Cookie Banner XPath
         if len(sys.argv) > 3 and sys.argv[3].strip():
             config['website_click_cookie_banner_xpath'] = sys.argv[3]
-            print(f"Using custom cookie banner XPath: {config['website_click_cookie_banner_xpath']}")
 
-        process_single_url_for_uipath(target_url, extraction_type)
+        # Optional 4th CLI argument: Custom Metadata File Path
+        custom_metadata = sys.argv[4] if len(sys.argv) > 4 and sys.argv[4].strip() else None
+
+        process_single_url_from_external_system(target_url, extraction_type, custom_metadata)
     else:
         # Fallback to standard interactive CLI menu
         try:
